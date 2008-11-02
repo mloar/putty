@@ -399,6 +399,7 @@ void save_open_settings(void *sesskey, Config *cfg)
     write_setting_i(sesskey, "TermWidth", cfg->width);
     write_setting_i(sesskey, "TermHeight", cfg->height);
     write_setting_fontspec(sesskey, "Font", cfg->font);
+    write_setting_i(sesskey, "FontScaling", cfg->font_scaling);
     write_setting_i(sesskey, "FontQuality", cfg->font_quality);
     write_setting_i(sesskey, "FontVTMode", cfg->vtmode);
     write_setting_i(sesskey, "UseSystemColours", cfg->system_colour);
@@ -698,6 +699,7 @@ void load_open_settings(void *sesskey, Config *cfg)
     gppi(sesskey, "TermHeight", 24, &cfg->height);
     gppfont(sesskey, "Font", &cfg->font);
     gppi(sesskey, "FontQuality", FQ_DEFAULT, &cfg->font_quality);
+    gppi(sesskey, "FontScaling", 1, &cfg->font_scaling);
     gppi(sesskey, "FontVTMode", VT_UNICODE, (int *) &cfg->vtmode);
     gppi(sesskey, "UseSystemColours", 0, &cfg->system_colour);
     gppi(sesskey, "TryPalette", 0, &cfg->try_palette);

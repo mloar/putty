@@ -1,0 +1,11 @@
+INPUTS=blurb.but config.but errors.but faq.but feedback.but gs.but index.but intro.but licence.but pageant.but pgpkeys.but plink.but pscp.but psftp.but pubkey.but sshnames.but udp.but using.but vids.but
+
+putty.hlp: $(INPUTS)
+	halibut --winhelp $(INPUTS)
+
+putty.hhp: $(INPUTS) chm.but
+	halibut --html $(INPUTS) chm.but
+
+putty.chm: putty.hhp
+	hhc putty.hhp
+

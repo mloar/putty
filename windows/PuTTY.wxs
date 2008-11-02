@@ -1,0 +1,208 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <?if $(var.ProcessorArchitecture)=x64 ?>
+    <Product Id="{0FC6C46E-4DA0-41D0-9A9D-FD533C304D7A}" Language="1033" Manufacturer="Simon Tatham" Name="PuTTY GSSAPI/SSPI" UpgradeCode="{C098BBDC-24FB-4EDA-A112-EF3593ADFFA2}" Version="$(var.ProductVersion)">
+      <Package Comments="This installer database contains the logic and data required to install PuTTY GSSAPI/SSPI." Compressed="yes" Description="PuTTY GSSAPI/SSPI" InstallerVersion="200" Languages="1033" Manufacturer="Simon Tatham" Platforms="x64" />
+  <?else ?>
+    <Product Id="{A461DEBC-27E3-4D62-8280-1C172DDF8AF8}" Language="1033" Manufacturer="Simon Tatham" Name="PuTTY GSSAPI/SSPI" UpgradeCode="{C535BB53-DE01-407A-967A-4B36135800D1}" Version="$(var.ProductVersion)">
+      <Package Comments="This installer database contains the logic and data required to install PuTTY GSSAPI/SSPI." Compressed="yes" Description="PuTTY GSSAPI/SSPI" InstallerVersion="200" Languages="1033" Manufacturer="Simon Tatham" />
+  <?endif?>
+        <?if $(var.ProcessorArchitecture)=x64 ?>
+        <CustomAction Id="SetTargetDir" Property="TARGETDIR" Value="[ProgramFiles64Folder]" />
+        <?else?>
+        <CustomAction Id="SetTargetDir" Property="TARGETDIR" Value="[ProgramFilesFolder]" />
+        <?endif?>
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="INSTALLDIR" Name="Putty">
+              <?if $(var.ProcessorArchitecture)=x64 ?>
+                <Component Id="PageantComponent" Guid="{D2FA84EC-4141-4B93-ADBA-C97097A1839A}" Win64="yes">
+              <?else?>
+                <Component Id="PageantComponent" Guid="{9C30E54E-C5A7-4352-988C-5C9484E4E4CA}">
+              <?endif?>
+                    <File Id="pageant.exeFile" Name="pageant.exe" KeyPath="yes" Vital="yes" DiskId="1" Source="pageant.exe" />
+                    <RegistryKey Action="createAndRemoveOnUninstall" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\pageant.exe" Root="HKLM" />
+                    <RegistryValue Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\pageant.exe" Value="[INSTALLDIR]pageant.exe" Type="string" />
+              <?if $(var.ProcessorArchitecture)=x64 ?>
+                </Component>
+              <?else?>
+                </Component>
+              <?endif?>
+              <?if $(var.ProcessorArchitecture)=x64 ?>
+                <Component Id="PlinkComponent" Guid="{E7889578-A620-474E-8528-341FB930C90E}" Win64="yes">
+              <?else?>
+                <Component Id="PlinkComponent" Guid="{521F26BD-BFDB-4E4C-B793-F8E7B61D556C}">
+              <?endif?>
+                    <File Id="plink.exeFile" Name="plink.exe" KeyPath="yes" Vital="yes" DiskId="1" Source="plink.exe" />
+                    <RegistryKey Action="createAndRemoveOnUninstall" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\plink.exe" Root="HKLM" />
+                    <RegistryValue Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\plink.exe" Value="[INSTALLDIR]plink.exe" Type="string" />
+              <?if $(var.ProcessorArchitecture)=x64 ?>
+                </Component>
+              <?else?>
+                </Component>
+              <?endif?>
+              <?if $(var.ProcessorArchitecture)=x64 ?>
+                <Component Id="PscpComponent" Guid="{DDF7ABBF-05FF-4F7F-BF94-639CE208099B}" Win64="yes">
+              <?else?>
+                <Component Id="PscpComponent" Guid="{40892417-1F64-45AD-A8E0-8F75680E31E9}">
+              <?endif?>
+                    <File Id="pscp.exeFile" Name="pscp.exe" KeyPath="yes" Vital="yes" DiskId="1" Source="pscp.exe" />
+                    <RegistryKey Action="createAndRemoveOnUninstall" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\pscp.exe" Root="HKLM" />
+                    <RegistryValue Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\pscp.exe" Value="[INSTALLDIR]pscp.exe" Type="string" />
+              <?if $(var.ProcessorArchitecture)=x64 ?>
+                </Component>
+              <?else?>
+                </Component>
+              <?endif?>
+              <?if $(var.ProcessorArchitecture)=x64 ?>
+                <Component Id="PsftpComponent" Guid="{EBD09333-0F73-46A6-9791-20B70643C56C}" Win64="yes">
+              <?else?>
+                <Component Id="PsftpComponent" Guid="{61AD7DF3-2CEA-4DA3-A7A4-171FDA5323B5}">
+              <?endif?>
+                    <File Id="psftp.exeFile" Name="psftp.exe" KeyPath="yes" Vital="yes" DiskId="1" Source="psftp.exe" />
+                    <RegistryKey Action="createAndRemoveOnUninstall" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\psftp.exe" Root="HKLM" />
+                    <RegistryValue Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\psftp.exe" Value="[INSTALLDIR]psftp.exe" Type="string" />
+              <?if $(var.ProcessorArchitecture)=x64 ?>
+                </Component>
+              <?else?>
+                </Component>
+              <?endif?>
+              <?if $(var.ProcessorArchitecture)=x64 ?>
+                <Component Id="PuttyComponent" Guid="{82C39CE1-8230-48FC-8655-F07D13B7A5AE}" Win64="yes">
+              <?else?>
+                <Component Id="PuttyComponent" Guid="{B414B3F6-58E3-4400-94E6-8B045548E426}">
+              <?endif?>
+                    <File Id="putty.exeFile" Name="putty.exe" KeyPath="yes" Vital="yes" DiskId="1" Source="putty.exe" />
+                    <RegistryKey Action="createAndRemoveOnUninstall" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\putty.exe" Root="HKLM" />
+                    <RegistryValue Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\putty.exe" Value="[INSTALLDIR]putty.exe" Type="string" />
+              <?if $(var.ProcessorArchitecture)=x64 ?>
+                </Component>
+              <?else?>
+                </Component>
+              <?endif?>
+              <?if $(var.ProcessorArchitecture)=x64 ?>
+                <Component Id="PuttygenComponent" Guid="{4772C17C-6ACE-4BB0-AF15-F094D41A2DEB}" Win64="yes">
+              <?else?>
+                <Component Id="PuttygenComponent" Guid="{667A0BBC-189E-44F9-9D36-BCC65E0EB11A}">
+              <?endif?>
+                    <File Id="puttygen.exeFile" Name="puttygen.exe" KeyPath="yes" Vital="yes" DiskId="1" Source="puttygen.exe" />
+                    <RegistryKey Action="createAndRemoveOnUninstall" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\puttygen.exe" Root="HKLM" />
+                    <RegistryValue Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\puttygen.exe" Value="[INSTALLDIR]puttygen.exe" Type="string" />
+              <?if $(var.ProcessorArchitecture)=x64 ?>
+                </Component>
+              <?else?>
+                </Component>
+              <?endif?>
+              <?if $(var.ProcessorArchitecture)=x64 ?>
+                <Component Id="PuttytelComponent" Guid="{583AE0CA-E9C3-4458-8FE3-AAD382D3BF99}" Win64="yes">
+              <?else?>
+                <Component Id="PuttytelComponent" Guid="{527308A4-9BFE-404D-A73E-A0A70344489A}">
+              <?endif?>
+                    <File Id="puttytel.exeFile" Name="puttytel.exe" KeyPath="yes" Vital="yes" DiskId="1" Source="puttytel.exe" />
+                    <RegistryKey Action="createAndRemoveOnUninstall" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\puttytel.exe" Root="HKLM" />
+                    <RegistryValue Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\puttytel.exe" Value="[INSTALLDIR]puttytel.exe" Type="string" />
+              <?if $(var.ProcessorArchitecture)=x64 ?>
+                </Component>
+              <?else?>
+                </Component>
+              <?endif?>
+              <?if $(var.ProcessorArchitecture)=x64 ?>
+                <Component Id="PuttyHelpComponent" Guid="{1D6DDFB4-0772-4FD1-B3ED-E5442B705B49}" Win64="yes">
+              <?else?>
+                <Component Id="PuttyHelpComponent" Guid="{16E4728A-508A-A45A-DFF1-120DA4662019}">
+              <?endif?>
+                    <File Id="putty.hlpFile" Name="putty.hlp" KeyPath="yes" Vital="yes" DiskId="1" Source="..\doc\putty.hlp" />
+                    <File Id="putty.cntFile" Name="putty.cnt" Vital="yes" DiskId="1" Source="..\doc\putty.cnt" />
+                    <File Id="putty.chmFile" Name="putty.chm" Vital="yes" DiskId="1" Source="..\doc\putty.chm" />
+              <?if $(var.ProcessorArchitecture)=x64 ?>
+                </Component>
+              <?else?>
+                </Component>
+              <?endif?>
+            </Directory>
+        </Directory>
+
+        <CustomActionRef Id="WixUIValidatePath" />
+        <UI>
+            <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
+            <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
+            <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+
+            <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+
+            <DialogRef Id="BrowseDlg" />
+            <DialogRef Id="DiskCostDlg" />
+            <DialogRef Id="ErrorDlg" />
+            <DialogRef Id="FatalError" />
+            <DialogRef Id="FilesInUse" />
+            <DialogRef Id="MsiRMFilesInUse" />
+            <DialogRef Id="PrepareDlg" />
+            <DialogRef Id="ProgressDlg" />
+            <DialogRef Id="ResumeDlg" />
+            <DialogRef Id="UserExit" />
+
+            <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidatePath" Order="3">1</Publish>
+            <Publish Dialog="BrowseDlg" Control="OK" Event="SpawnDialog" Value="InvalidDirDlg" Order="4"><![CDATA[WIXUI_INSTALLDIR_VALID<>"1"]]></Publish>
+
+            <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
+
+            <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg">1</Publish>
+
+            <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg">1</Publish>
+            <Publish Dialog="InstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+            <Publish Dialog="InstallDirDlg" Control="Next" Event="DoAction" Value="WixUIValidatePath" Order="2">1</Publish>
+            <Publish Dialog="InstallDirDlg" Control="Next" Event="SpawnDialog" Value="InvalidDirDlg" Order="3"><![CDATA[WIXUI_INSTALLDIR_VALID<>"1"]]></Publish>
+            <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="4"><![CDATA[WIXUI_INSTALLDIR_VALID="1"]]></Publish>
+            <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+            <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2">1</Publish>
+            
+            <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg" Order="1">NOT Installed</Publish>
+            <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2">Installed</Publish>
+
+            <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg">1</Publish>
+
+            <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+            <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+            <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg">1</Publish>
+
+            <Property Id="ARPNOMODIFY" Value="1" />
+            <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+        </UI>
+        <UIRef Id="WixUI_Common" />
+
+        <Feature Id="DefaultFeature" ConfigurableDirectory="INSTALLDIR" Level="1">
+            <ComponentRef Id="PageantComponent" />
+            <ComponentRef Id="PlinkComponent" />
+            <ComponentRef Id="PscpComponent" />
+            <ComponentRef Id="PsftpComponent" />
+            <ComponentRef Id="PuttyComponent" />
+            <ComponentRef Id="PuttygenComponent" />
+            <ComponentRef Id="PuttytelComponent" />
+            <ComponentRef Id="PuttyHelpComponent" />
+        </Feature>
+        <Media Id="1" Cabinet="Product.cab" EmbedCab="yes" />
+        <Property Id="NEWERPRODUCTFOUND" Secure="yes" />
+        <Property Id="PREVIOUSVERSIONSINSTALLED" Secure="yes" />
+      <?if $(var.ProcessorArchitecture)=x64 ?>
+        <Upgrade Id="{C098BBDC-24FB-4EDA-A112-EF3593ADFFA2}">
+            <UpgradeVersion Minimum="$(var.ProductVersion)" Property="NEWERPRODUCTFOUND" OnlyDetect="yes" IncludeMinimum="yes" />
+            <UpgradeVersion Minimum="0.0.0" Maximum="$(var.ProductVersion)" Property="PREVIOUSVERSIONSINSTALLED" IncludeMinimum="yes" />
+        </Upgrade>
+      <?else?>
+        <Upgrade Id="{C535BB53-DE01-407A-967A-4B36135800D1}">
+            <UpgradeVersion Minimum="$(var.ProductVersion)" Property="NEWERPRODUCTFOUND" OnlyDetect="yes" IncludeMinimum="yes" />
+            <UpgradeVersion Minimum="0.0.0" Maximum="$(var.ProductVersion)" Property="PREVIOUSVERSIONSINSTALLED" IncludeMinimum="yes" />
+        </Upgrade>
+      <?endif?>
+        <InstallExecuteSequence>
+            <Custom Action="SetTargetDir" Before="CostFinalize">NOT REMOVE AND NOT RESUME AND NOT TARGETDIR</Custom>
+            <RemoveExistingProducts After="InstallFinalize" />
+        </InstallExecuteSequence>
+        <InstallUISequence>
+            <Custom Action="SetTargetDir" Before="CostFinalize">NOT REMOVE AND NOT RESUME AND NOT TARGETDIR</Custom>
+        </InstallUISequence>
+    <?if $(var.ProcessorArchitecture)=x64 ?>
+    </Product>
+    <?else?>
+    </Product>
+    <?endif?>
+</Wix>

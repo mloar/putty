@@ -64,6 +64,7 @@
 #define WINHELP_CTX_behaviour_altenter "behaviour.altenter:config-fullscreen"
 #define WINHELP_CTX_appearance_cursor "appearance.cursor:config-cursor"
 #define WINHELP_CTX_appearance_font "appearance.font:config-font"
+#define WINHELP_CTX_appearance_font_scaling "appearance.config-font-scaling"
 #define WINHELP_CTX_appearance_title "appearance.title:config-title"
 #define WINHELP_CTX_appearance_hidemouse "appearance.hidemouse:config-mouseptr"
 #define WINHELP_CTX_appearance_border "appearance.border:config-winborder"

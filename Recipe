@@ -136,7 +136,7 @@
 
 # Hack to force version.o to be rebuilt always.
 !begin vc
-version.obj: *.c *.h *.rc
+version.obj: FORCE
 	cl $(VER) $(CFLAGS) /c ..\version.c
 !end
 !specialobj vc version

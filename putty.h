@@ -534,6 +534,7 @@ struct config_tag {
     int win_name_always;
     int width, height;
     FontSpec font;
+    int font_scaling;
     int font_quality;
     Filename logfilename;
     int logtype;

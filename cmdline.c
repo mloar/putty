@@ -436,6 +436,20 @@ int cmdline_process_param(char *p, char *value, int need_save, Config *cfg)
 	cfg->addressfamily = ADDRTYPE_IPV6;
     }
 
+	if (!strcmp(p, "-g")) {
+	RETURN(1);
+	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
+	SAVEABLE(1);
+	cfg->try_gssapi_auth = 1;
+	}
+
+	if (!strcmp(p, "-G")) {
+	RETURN(1);
+	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
+	SAVEABLE(1);
+	cfg->try_gssapi_auth = 0;
+	}
+
     return ret;			       /* unrecognised */
 }
 

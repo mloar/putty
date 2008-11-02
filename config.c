@@ -1534,6 +1534,11 @@ void setup_config_box(struct controlbox *b, int midsession,
 		 HELPCTX(appearance_font),
 		 dlg_stdfontsel_handler, I(offsetof(Config, font)));
 
+		ctrl_checkbox(s, "Apply font scaling", NO_SHORTCUT,
+			  HELPCTX(appearance_font_scaling),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config, font_scaling)));
+
     s = ctrl_getset(b, "Window/Appearance", "mouse",
 		    "Adjust the use of the mouse pointer");
     ctrl_checkbox(s, "Hide mouse pointer when typing in window", 'p',

@@ -230,8 +230,15 @@ char *dupvprintf(const char *fmt, va_list ap)
 
     while (1) {
 #ifdef _WINDOWS
-#define vsnprintf _vsnprintf
+	va_list aq;
+	aq = ap;
+#ifdef _set_printf_count_output
+	// %n disabled by default.  Call this to enable.
+	_set_printf_count_output(1);
 #endif
+	len = _vsnprintf(buf, size, fmt, aq);
+	va_end(aq);
+#else
 #ifdef va_copy
 	/* Use the `va_copy' macro mandated by C99, if present.
 	 * XXX some environments may have this as __va_copy() */
@@ -249,6 +256,7 @@ char *dupvprintf(const char *fmt, va_list ap)
 	 * XXX the autoconf manual suggests that using memcpy() will give
 	 *     "maximum portability". */
 	len = vsnprintf(buf, size, fmt, ap);
+#endif
 #endif
 	if (len >= 0 && len < size) {
 	    /* This is the C99-specified criterion for snprintf to have

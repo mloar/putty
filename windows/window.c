@@ -1364,12 +1364,13 @@ static void init_fonts(int pick_width, int pick_height)
     }
 
     hdc = GetDC(hwnd);
+    SetMapMode(hdc, MM_TEXT);
 
     if (pick_height)
 	font_height = pick_height;
     else {
 	font_height = cfg.font.height;
-	if (font_height > 0) {
+	if (font_height > 0 && cfg.font_scaling) {
 	    font_height =
 		-MulDiv(font_height, GetDeviceCaps(hdc, LOGPIXELSY), 72);
 	}
@@ -2222,6 +2223,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 		if (strcmp(cfg.font.name, prev_cfg.font.name) != 0 ||
 		    strcmp(cfg.line_codepage, prev_cfg.line_codepage) != 0 ||
+        cfg.font_scaling != prev_cfg.font_scaling ||
 		    cfg.font.isbold != prev_cfg.font.isbold ||
 		    cfg.font.height != prev_cfg.font.height ||
 		    cfg.font.charset != prev_cfg.font.charset ||

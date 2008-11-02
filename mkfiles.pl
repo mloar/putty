@@ -574,7 +574,7 @@ if (defined $makefiles{'vc'}) {
       "MAKEFILE = Makefile.vc\n".
       "\n".
       "# C compilation flags\n".
-      "CFLAGS = /nologo /W3 /O1 " .
+      "CFLAGS = /nologo /W3 /Od " .
       (join " ", map {"-I$dirpfx$_"} @srcdirs) .
       " /D_WINDOWS /D_WIN32_WINDOWS=0x500 /DWINVER=0x500\n".
       "LFLAGS = /incremental:no /fixed\n".
@@ -611,7 +611,7 @@ if (defined $makefiles{'vc'}) {
 	print "\n";
     }
     foreach $d (&deps("X.obj", "X.res", $dirpfx, "\\", "vc")) {
-        $extradeps = $forceobj{$d->{obj_orig}} ? ["*.c","*.h","*.rc"] : [];
+        $extradeps = $forceobj{$d->{obj_orig}} ? ["FORCE"] : [];
         print &splitline(sprintf("%s: %s", $d->{obj},
                                  join " ", @$extradeps, @{$d->{deps}})), "\n";
         if ($d->{obj} =~ /.obj$/) {
@@ -620,9 +620,10 @@ if (defined $makefiles{'vc'}) {
 	    print "\trc \$(RCFL) -r \$(RCFLAGS) ".$d->{deps}->[0],"\n\n";
 	}
     }
-    print "\n";
+    print "\nFORCE:\n\n";
     print $makefile_extra{'vc'}->{'end'};
     print "\nclean: tidy\n".
+      "\t-del *.msi\n\n".
       "\t-del *.exe\n\n".
       "tidy:\n".
       "\t-del *.obj\n".
@@ -639,6 +640,7 @@ if (defined $makefiles{'vc'}) {
       "\t-del *.plg\n".
       "\t-del *.map\n".
       "\t-del *.idb\n".
+      "\t-del *.wixobj\n".
       "\t-del debug.log\n";
     select STDOUT; close OUT;
 }
