@@ -7,5 +7,6 @@ putty.hhp: $(INPUTS) chm.but
 	halibut --html $(INPUTS) chm.but
 
 putty.chm: putty.hhp
-	hhc putty.hhp
+# Ignore the return code from hhc, since it returns 1 on success.
+	-hhc putty.hhp
 
