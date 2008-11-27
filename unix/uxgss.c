@@ -1,6 +1,6 @@
 #include <string.h>
-#include <gssapi/gssapi.h>
 #include "putty.h"
+#include <gssapi/gssapi.h>
 #include "sshgss.h"
 #include "misc.h"
 
