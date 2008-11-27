@@ -574,10 +574,10 @@ if (defined $makefiles{'vc'}) {
       "MAKEFILE = Makefile.vc\n".
       "\n".
       "# C compilation flags\n".
-      "CFLAGS = /nologo /W3 /Od " .
+      "CFLAGS = /nologo /W3 /O1 /Z7 " .
       (join " ", map {"-I$dirpfx$_"} @srcdirs) .
       " /D_WINDOWS /D_WIN32_WINDOWS=0x500 /DWINVER=0x500\n".
-      "LFLAGS = /incremental:no /fixed\n".
+      "LFLAGS = /incremental:no /fixed /release /debug\n".
       "RCFLAGS = -DWIN32 -D_WIN32 -DWINVER=0x0400\n".
       "\n".
       $makefile_extra{'vc'}->{'vars'} .

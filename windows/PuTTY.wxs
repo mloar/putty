@@ -1,11 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <?if $(var.ProcessorArchitecture)=x64 ?>
-    <Product Id="{0FC6C46E-4DA0-41D0-9A9D-FD533C304D7A}" Language="1033" Manufacturer="Simon Tatham" Name="PuTTY GSSAPI/SSPI" UpgradeCode="{C098BBDC-24FB-4EDA-A112-EF3593ADFFA2}" Version="$(var.ProductVersion)">
-      <Package Comments="This installer database contains the logic and data required to install PuTTY GSSAPI/SSPI." Compressed="yes" Description="PuTTY GSSAPI/SSPI" InstallerVersion="200" Languages="1033" Manufacturer="Simon Tatham" Platforms="x64" />
+    <Product Id="{410D7342-FFDA-496B-969D-162F0060019D}" Language="1033" Manufacturer="Simon Tatham" Name="PuTTY GSSAPI" UpgradeCode="{C098BBDC-24FB-4EDA-A112-EF3593ADFFA2}" Version="$(var.ProductVersion)">
+      <Package Comments="This installer database contains the logic and data required to install PuTTY GSSAPI." Compressed="yes" Description="PuTTY GSSAPI" InstallerVersion="200" Languages="1033" Manufacturer="Simon Tatham" Platforms="x64" />
   <?else ?>
-    <Product Id="{A461DEBC-27E3-4D62-8280-1C172DDF8AF8}" Language="1033" Manufacturer="Simon Tatham" Name="PuTTY GSSAPI/SSPI" UpgradeCode="{C535BB53-DE01-407A-967A-4B36135800D1}" Version="$(var.ProductVersion)">
-      <Package Comments="This installer database contains the logic and data required to install PuTTY GSSAPI/SSPI." Compressed="yes" Description="PuTTY GSSAPI/SSPI" InstallerVersion="200" Languages="1033" Manufacturer="Simon Tatham" />
+    <Product Id="{A461DEBC-27E3-4D62-8280-1C172DDF8AF8}" Language="1033" Manufacturer="Simon Tatham" Name="PuTTY GSSAPI" UpgradeCode="{C535BB53-DE01-407A-967A-4B36135800D1}" Version="$(var.ProductVersion)">
+      <Package Comments="This installer database contains the logic and data required to install PuTTY GSSAPI." Compressed="yes" Description="PuTTY GSSAPI" InstallerVersion="200" Languages="1033" Manufacturer="Simon Tatham" />
   <?endif?>
         <?if $(var.ProcessorArchitecture)=x64 ?>
         <CustomAction Id="SetTargetDir" Property="TARGETDIR" Value="[ProgramFiles64Folder]" />

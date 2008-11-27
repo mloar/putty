@@ -2223,7 +2223,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 		if (strcmp(cfg.font.name, prev_cfg.font.name) != 0 ||
 		    strcmp(cfg.line_codepage, prev_cfg.line_codepage) != 0 ||
-        cfg.font_scaling != prev_cfg.font_scaling ||
+		    cfg.font_scaling != prev_cfg.font_scaling ||
 		    cfg.font.isbold != prev_cfg.font.isbold ||
 		    cfg.font.height != prev_cfg.font.height ||
 		    cfg.font.charset != prev_cfg.font.charset ||
