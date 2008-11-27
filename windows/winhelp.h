@@ -1,6 +1,10 @@
 /*
- * winhelp.h - define Windows Help context names. These match up with
- * the \cfg{winhelp-topic} directives in the Halibut source.
+ * winhelp.h - define Windows Help context names.
+ * Each definition has the form "winhelp-topic:halibut-topic", where:
+ *  - "winhelp-topic" matches up with the \cfg{winhelp-topic} directives
+ *    in the Halibut source, and is used for WinHelp;
+ *  - "halibut-topic" matches up with the Halibut keywords in the source,
+ *    and is used for HTML Help.
  */
 
 /* Maximum length for WINHELP_CTX_foo strings */
@@ -71,6 +75,7 @@
 #define WINHELP_CTX_connection_termtype "connection.termtype:config-termtype"
 #define WINHELP_CTX_connection_termspeed "connection.termspeed:config-termspeed"
 #define WINHELP_CTX_connection_username "connection.username:config-username"
+#define WINHELP_CTX_connection_username_from_env "connection.usernamefromenv:config-username-from-env"
 #define WINHELP_CTX_connection_keepalive "connection.keepalive:config-keepalive"
 #define WINHELP_CTX_connection_nodelay "connection.nodelay:config-nodelay"
 #define WINHELP_CTX_connection_ipversion "connection.ipversion:config-address-family"
@@ -122,6 +127,7 @@
 #define WINHELP_CTX_translation_linedraw "translation.linedraw:config-linedraw"
 #define WINHELP_CTX_ssh_tunnels_x11 "ssh.tunnels.x11:config-ssh-x11"
 #define WINHELP_CTX_ssh_tunnels_x11auth "ssh.tunnels.x11auth:config-ssh-x11auth"
+#define WINHELP_CTX_ssh_tunnels_xauthority "ssh.tunnels.xauthority:config-ssh-xauthority"
 #define WINHELP_CTX_ssh_tunnels_portfwd "ssh.tunnels.portfwd:config-ssh-portfwd"
 #define WINHELP_CTX_ssh_tunnels_portfwd_localhost "ssh.tunnels.portfwd.localhost:config-ssh-portfwd-localhost"
 #define WINHELP_CTX_ssh_tunnels_portfwd_ipversion "ssh.tunnels.portfwd.ipversion:config-ssh-portfwd-address-family"

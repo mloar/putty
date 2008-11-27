@@ -1,9 +1,14 @@
-#ifndef NO_GSSAPI
-
 #include <string.h>
-#include <gssapi/gssapi_krb5.h>
+#include <gssapi/gssapi.h>
+#include "putty.h"
 #include "sshgss.h"
 #include "misc.h"
+
+#ifndef NO_GSSAPI
+
+static gss_OID_desc putty_gss_mech_krb5_desc =
+    { 9, (void *)"\x2a\x86\x48\x86\xf7\x12\x01\x02\x02" };
+static gss_OID const putty_gss_mech_krb5 = &putty_gss_mech_krb5_desc;
 
 typedef struct uxSsh_gss_ctx {
     OM_uint32 maj_stat;
@@ -22,8 +27,8 @@ int ssh_gss_init(void)
 Ssh_gss_stat ssh_gss_indicate_mech(Ssh_gss_buf *mech)
 {
     /* Copy constant into mech */
-    mech->len  = gss_mech_krb5->length;
-    mech->data = gss_mech_krb5->elements;
+    mech->length  = putty_gss_mech_krb5->length;
+    mech->value = putty_gss_mech_krb5->elements;
 
     return SSH_GSS_OK;
 }
@@ -74,14 +79,14 @@ Ssh_gss_stat ssh_gss_init_sec_context(Ssh_gss_ctx *ctx,
 					   GSS_C_NO_CREDENTIAL,
 					   &uxctx->ctx,
 					   (gss_name_t) srv_name,
-					   (gss_OID) gss_mech_krb5,
+					   (gss_OID) putty_gss_mech_krb5,
 					   GSS_C_MUTUAL_FLAG |
 					   GSS_C_INTEG_FLAG | to_deleg,
 					   0,
-					   NULL,   /* no channel bindings */
-					   (gss_buffer_desc *)recv_tok,
+					   GSS_C_NO_CHANNEL_BINDINGS,
+					   recv_tok,
 					   NULL,   /* ignore mech type */
-					   (gss_buffer_desc *)send_tok,
+					   send_tok,
 					   &ret_flags,
 					   NULL);  /* ignore time_rec */
   
@@ -103,13 +108,13 @@ Ssh_gss_stat ssh_gss_display_status(Ssh_gss_ctx ctx, Ssh_gss_buf *buf)
 
     /* get first mesg from GSS */
     ccc=0;
-    lmax=gss_display_status(&lmin,uxctx->maj_stat,GSS_C_GSS_CODE,(gss_OID) gss_mech_krb5,&ccc,&msg_maj);
+    lmax=gss_display_status(&lmin,uxctx->maj_stat,GSS_C_GSS_CODE,(gss_OID) putty_gss_mech_krb5,&ccc,&msg_maj);
 
     if (lmax != GSS_S_COMPLETE) return SSH_GSS_FAILURE;
 
     /* get first mesg from Kerberos */
     ccc=0;
-    lmax=gss_display_status(&lmin,uxctx->min_stat,GSS_C_MECH_CODE,(gss_OID) gss_mech_krb5,&ccc,&msg_min);
+    lmax=gss_display_status(&lmin,uxctx->min_stat,GSS_C_MECH_CODE,(gss_OID) putty_gss_mech_krb5,&ccc,&msg_min);
 
     if (lmax != GSS_S_COMPLETE) {
 	gss_release_buffer(&lmin, &msg_maj);
@@ -117,14 +122,14 @@ Ssh_gss_stat ssh_gss_display_status(Ssh_gss_ctx ctx, Ssh_gss_buf *buf)
     }
 
     /* copy data into buffer */
-    buf->len = msg_maj.length + msg_min.length + 1;
-    buf->data = snewn(buf->len + 1, char);
+    buf->length = msg_maj.length + msg_min.length + 1;
+    buf->value = snewn(buf->length + 1, char);
   
     /* copy mem */
-    memcpy(buf->data, msg_maj.value, msg_maj.length);
-    buf->data[msg_maj.length] = ' ';
-    memcpy(buf->data + msg_maj.length + 1, msg_min.value, msg_min.length);
-    buf->data[buf->len] = 0;
+    memcpy((char *)buf->value, msg_maj.value, msg_maj.length);
+    ((char *)buf->value)[msg_maj.length] = ' ';
+    memcpy((char *)buf->value + msg_maj.length + 1, msg_min.value, msg_min.length);
+    ((char *)buf->value)[buf->length] = 0;
     /* free mem & exit */
     gss_release_buffer(&lmin, &msg_maj);
     gss_release_buffer(&lmin, &msg_min);
@@ -134,7 +139,7 @@ Ssh_gss_stat ssh_gss_display_status(Ssh_gss_ctx ctx, Ssh_gss_buf *buf)
 Ssh_gss_stat ssh_gss_free_tok(Ssh_gss_buf *send_tok)
 {
     OM_uint32 min_stat,maj_stat;
-    maj_stat = gss_release_buffer(&min_stat, (gss_buffer_desc *)send_tok);
+    maj_stat = gss_release_buffer(&min_stat, send_tok);
   
     if (maj_stat == GSS_S_COMPLETE) return SSH_GSS_OK;
     return SSH_GSS_FAILURE;
@@ -170,11 +175,7 @@ Ssh_gss_stat ssh_gss_get_mic(Ssh_gss_ctx ctx, Ssh_gss_buf *buf,
 {
     uxSsh_gss_ctx *uxctx = (uxSsh_gss_ctx *) ctx;
     if (uxctx == NULL) return SSH_GSS_FAILURE;
-    return gss_get_mic(&(uxctx->min_stat),
-		       uxctx->ctx,
-		       0,
-		       (gss_buffer_desc *)buf,
-		       (gss_buffer_desc *)hash);
+    return gss_get_mic(&(uxctx->min_stat), uxctx->ctx, 0, buf, hash);
 }
 
 Ssh_gss_stat ssh_gss_free_mic(Ssh_gss_buf *hash)
