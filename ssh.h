@@ -213,7 +213,7 @@ struct ssh_hash {
 
 struct ssh_kex {
     char *name, *groupname;
-    enum { KEXTYPE_DH, KEXTYPE_RSA } main_type;
+    enum { KEXTYPE_DH, KEXTYPE_RSA, KEXTYPE_GSS } main_type;
     /* For DH */
     const unsigned char *pdata, *gdata; /* NULL means group exchange */
     int plen, glen;
@@ -281,6 +281,9 @@ extern const struct ssh_hash ssh_sha256;
 extern const struct ssh_kexes ssh_diffiehellman_group1;
 extern const struct ssh_kexes ssh_diffiehellman_group14;
 extern const struct ssh_kexes ssh_diffiehellman_gex;
+extern const struct ssh_kexes ssh_gss_diffiehellman_group1;
+extern const struct ssh_kexes ssh_gss_diffiehellman_group14;
+extern const struct ssh_kexes ssh_gss_diffiehellman_gex;
 extern const struct ssh_kexes ssh_rsa_kex;
 extern const struct ssh_signkey ssh_dss;
 extern const struct ssh_signkey ssh_rsa;

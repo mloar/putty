@@ -89,6 +89,12 @@ Ssh_gss_stat ssh_gss_get_mic(Ssh_gss_ctx ctx, Ssh_gss_buf *in,
 			     Ssh_gss_buf *out);
 
 /*
+ * Verifies a MIC for some input data.
+ */
+Ssh_gss_stat ssh_gss_verify_mic(Ssh_gss_ctx ctx, Ssh_gss_buf *data,
+			     Ssh_gss_buf *mic);
+
+/*
  * Frees the contents of an Ssh_gss_buf filled in by
  * ssh_gss_get_mic(). Do not accidentally call this on something
  * filled in by ssh_gss_init_sec_context() (which requires a

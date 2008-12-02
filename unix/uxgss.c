@@ -178,6 +178,14 @@ Ssh_gss_stat ssh_gss_get_mic(Ssh_gss_ctx ctx, Ssh_gss_buf *buf,
     return gss_get_mic(&(uxctx->min_stat), uxctx->ctx, 0, buf, hash);
 }
 
+Ssh_gss_stat ssh_gss_verify_mic(Ssh_gss_ctx ctx, Ssh_gss_buf *buf,
+			     Ssh_gss_buf *hash) 
+{
+    uxSsh_gss_ctx *uxctx = (uxSsh_gss_ctx *) ctx;
+    if (uxctx == NULL) return SSH_GSS_FAILURE;
+    return gss_verify_mic(&(uxctx->min_stat), uxctx->ctx, buf, hash, NULL);
+}
+
 Ssh_gss_stat ssh_gss_free_mic(Ssh_gss_buf *hash)
 {
     /* On Unix this is the same freeing process as ssh_gss_free_tok. */

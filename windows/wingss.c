@@ -39,6 +39,9 @@ DECL_SSPI_FUNCTION(static, SECURITY_STATUS,
 DECL_SSPI_FUNCTION(static, SECURITY_STATUS,
 		   MakeSignature,
 		   (PCtxtHandle, ULONG, PSecBufferDesc, ULONG));
+DECL_SSPI_FUNCTION(static, SECURITY_STATUS,
+		   VerifySignature,
+		   (PCtxtHandle, PSecBufferDesc, ULONG, PULONG));
 
 static HMODULE security_module = NULL;
 
@@ -68,6 +71,7 @@ int ssh_gss_init(void)
 	GET_SSPI_FUNCTION(security_module, DeleteSecurityContext);
 	GET_SSPI_FUNCTION(security_module, QueryContextAttributesA);
 	GET_SSPI_FUNCTION(security_module, MakeSignature);
+	GET_SSPI_FUNCTION(security_module, VerifySignature);
 	return 1;
     }
     return 0;
@@ -299,6 +303,36 @@ Ssh_gss_stat ssh_gss_get_mic(Ssh_gss_ctx ctx, Ssh_gss_buf *buf,
 	hash->length = InputSecurityToken[1].cbBuffer;
 	hash->value = InputSecurityToken[1].pvBuffer;
     }
+
+    return winctx->maj_stat;
+}
+
+Ssh_gss_stat ssh_gss_verify_mic(Ssh_gss_ctx ctx, Ssh_gss_buf *buf,
+			     Ssh_gss_buf *hash)
+{
+    winSsh_gss_ctx *winctx= (winSsh_gss_ctx *) ctx;
+    SecBufferDesc InputBufferDescriptor;
+    SecBuffer InputSecurityToken[2];
+    ULONG qop;
+
+    if (winctx == NULL) return SSH_GSS_FAILURE;
+
+    winctx->maj_stat = 0;
+
+    InputBufferDescriptor.cBuffers = 2;
+    InputBufferDescriptor.pBuffers = InputSecurityToken;
+    InputBufferDescriptor.ulVersion = SECBUFFER_VERSION;
+    InputSecurityToken[0].BufferType = SECBUFFER_DATA;
+    InputSecurityToken[0].cbBuffer = buf->length;
+    InputSecurityToken[0].pvBuffer = buf->value;
+    InputSecurityToken[1].BufferType = SECBUFFER_TOKEN;
+    InputSecurityToken[1].cbBuffer = hash->length;
+    InputSecurityToken[1].pvBuffer = hash->value;
+
+    winctx->maj_stat = p_VerifySignature(&winctx->context,
+				       &InputBufferDescriptor,
+				       0,
+				       &qop);
 
     return winctx->maj_stat;
 }
