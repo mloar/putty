@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <?if $(var.ProcessorArchitecture)=x64 ?>
-    <Product Id="{410D7342-FFDA-496B-969D-162F0060019D}" Language="1033" Manufacturer="Simon Tatham" Name="PuTTY GSSAPI" UpgradeCode="{C098BBDC-24FB-4EDA-A112-EF3593ADFFA2}" Version="$(var.ProductVersion)">
+    <Product Id="{72C56DE3-2493-4CF1-ACE3-83C24653FFCD}" Language="1033" Manufacturer="Simon Tatham" Name="PuTTY GSSAPI" UpgradeCode="{C098BBDC-24FB-4EDA-A112-EF3593ADFFA2}" Version="$(var.ProductVersion)">
       <Package Comments="This installer database contains the logic and data required to install PuTTY GSSAPI." Compressed="yes" Description="PuTTY GSSAPI" InstallerVersion="200" Languages="1033" Manufacturer="Simon Tatham" Platforms="x64" />
   <?else ?>
-    <Product Id="{4032AC0C-B05B-4294-A7CF-329B5619983F}" Language="1033" Manufacturer="Simon Tatham" Name="PuTTY GSSAPI" UpgradeCode="{C535BB53-DE01-407A-967A-4B36135800D1}" Version="$(var.ProductVersion)">
+    <Product Id="{D9C19124-0ED7-44CB-997C-D8A92BE5813D}" Language="1033" Manufacturer="Simon Tatham" Name="PuTTY GSSAPI" UpgradeCode="{C535BB53-DE01-407A-967A-4B36135800D1}" Version="$(var.ProductVersion)">
       <Package Comments="This installer database contains the logic and data required to install PuTTY GSSAPI." Compressed="yes" Description="PuTTY GSSAPI" InstallerVersion="200" Languages="1033" Manufacturer="Simon Tatham" />
   <?endif?>
         <?if $(var.ProcessorArchitecture)=x64 ?>
