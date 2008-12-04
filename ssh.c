@@ -98,8 +98,8 @@
 #define SSH2_MSG_KEXGSS_COMPLETE                  32	/* 0x20 */
 #define SSH2_MSG_KEXGSS_HOSTKEY                   33	/* 0x21 */
 #define SSH2_MSG_KEXGSS_ERROR                     34	/* 0x22 */
-#define SSH2_MSG_KEXGSS_GEX_REQUEST               40	/* 0x1e */
-#define SSH2_MSG_KEXGSS_GEX_GROUP                 41	/* 0x1f */
+#define SSH2_MSG_KEXGSS_GROUPREQ                  40	/* 0x1e */
+#define SSH2_MSG_KEXGSS_GROUP                     41	/* 0x1f */
 #define SSH2_MSG_USERAUTH_REQUEST                 50	/* 0x32 */
 #define SSH2_MSG_USERAUTH_FAILURE                 51	/* 0x33 */
 #define SSH2_MSG_USERAUTH_SUCCESS                 52	/* 0x34 */
@@ -385,8 +385,8 @@ static char *ssh2_pkt_type(Pkt_KCtx pkt_kctx, Pkt_ACtx pkt_actx, int type)
     translatek(SSH2_MSG_KEXGSS_COMPLETE, SSH2_PKTCTX_GSSGROUP);
     translatek(SSH2_MSG_KEXGSS_HOSTKEY, SSH2_PKTCTX_GSSGROUP);
     translatek(SSH2_MSG_KEXGSS_ERROR, SSH2_PKTCTX_GSSGROUP);
-    translatek(SSH2_MSG_KEXGSS_GEX_REQUEST, SSH2_PKTCTX_GSSGEX);
-    translatek(SSH2_MSG_KEXGSS_GEX_GROUP, SSH2_PKTCTX_GSSGEX);
+    translatek(SSH2_MSG_KEXGSS_GROUPREQ, SSH2_PKTCTX_GSSGEX);
+    translatek(SSH2_MSG_KEXGSS_GROUP, SSH2_PKTCTX_GSSGEX);
     translatek(SSH2_MSG_KEXGSS_INIT, SSH2_PKTCTX_GSSGEX);
     translatek(SSH2_MSG_KEXGSS_CONTINUE, SSH2_PKTCTX_GSSGEX);
     translatek(SSH2_MSG_KEXGSS_COMPLETE, SSH2_PKTCTX_GSSGEX);
@@ -949,7 +949,7 @@ struct ssh_tag {
     char *deferred_rekey_reason;    /* points to STATIC string; don't free */
 
 #ifndef NO_GSSAPI
-    int can_gssapi;
+    int can_gssapi, did_gssapi;
     Ssh_gss_ctx gss_ctx;
     Ssh_gss_name gss_srv_name;
 #endif
@@ -3007,7 +3007,7 @@ static const char *connect_to_host(Ssh ssh, char *host, int port,
     }
 
 #ifndef NO_GSSAPI
-    memset(&ssh->gss_ctx, 0, sizeof(Ssh_gss_ctx));
+    ssh->gss_ctx = NULL;
     memset(&ssh->gss_srv_name, 0, sizeof(Ssh_gss_name));
 
     if (!ssh->cfg.try_gssapi_auth || !ssh_gss_init())
@@ -3029,6 +3029,7 @@ static const char *connect_to_host(Ssh ssh, char *host, int port,
 	}
 	else
 	    ssh->can_gssapi = 1;
+	    ssh->did_gssapi = 0;
 	}
 #endif
 
@@ -5402,8 +5403,17 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
         int dlgret;
 	int guessok;
 	int ignorepkt;
+#ifndef NO_GSSAPI
+	/*
+	 * This context is set to the global context for the first key
+	 * exchange, then set to a new one for each rekey since the context
+	 * from the first key exchange is needed for the gssapi-keyex
+	 * userauth mechanism.
+	 */
+	Ssh_gss_ctx gss_ctx;
 	Ssh_gss_stat gss_stat;
 	Ssh_gss_buf gss_sndtok, gss_rcvtok;
+#endif
     };
     crState(do_ssh2_transport_state);
 
@@ -5417,31 +5427,6 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 
     s->got_session_id = s->activated_authconn = FALSE;
 
-#ifndef NO_GSSAPI
-    /* Don't enable gssapi-keyex unless we can acquire credentials
-     * and generate an initial token */
-    if (ssh->can_gssapi)
-    {
-	s->gss_stat = ssh_gss_init_sec_context(
-		&ssh->gss_ctx,
-		ssh->gss_srv_name,
-		ssh->cfg.gssapifwd,
-		&s->gss_rcvtok,
-		&s->gss_sndtok);
-
-	if (s->gss_stat != SSH_GSS_OK && s->gss_stat != SSH_GSS_S_CONTINUE_NEEDED) {
-	    Ssh_gss_buf gss_buf;
-
-	    logevent("GSSAPI key-exchange initialisation failed");
-	    if (ssh_gss_display_status(&ssh->gss_ctx, &gss_buf) == SSH_GSS_OK) {
-		logevent(gss_buf.value);
-		sfree(gss_buf.value);
-	    }
-	    ssh->can_gssapi = 0;
-	}
-    }
-#endif
-
     /*
      * Be prepared to work around the buggy MAC problem.
      */
@@ -5451,6 +5436,48 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	s->maclist = macs, s->nmacs = lenof(macs);
 
   begin_key_exchange:
+
+#ifndef NO_GSSAPI
+    /* Don't enable gssapi-keyex unless we can acquire credentials
+     * and generate an initial token */
+    if (ssh->can_gssapi)
+    {
+	s->gss_ctx = NULL;
+	SSH_GSS_CLEAR_BUF(&s->gss_rcvtok);
+
+	/* For the first key-exchange, we use ssh->gss_ctx, since this context
+	 * must be used by the userauth mechanism.  For all subsequent rekeys,
+	 * we create a new context.
+	 */
+	if (ssh->did_gssapi) {
+	    if (ssh_gss_acquire_cred(&s->gss_ctx) != SSH_GSS_OK) {
+		logevent("GSSAPI credential acquisition failed");
+		ssh->can_gssapi = 0;
+	    }
+	} else {
+	    s->gss_ctx = ssh->gss_ctx;
+	}
+
+	s->gss_stat = ssh_gss_init_sec_context(
+		&s->gss_ctx,
+		ssh->gss_srv_name,
+		ssh->cfg.gssapifwd,
+		&s->gss_rcvtok,
+		&s->gss_sndtok);
+
+	if (s->gss_stat != SSH_GSS_OK && s->gss_stat != SSH_GSS_S_CONTINUE_NEEDED) {
+	    Ssh_gss_buf gss_buf;
+
+	    logevent("GSSAPI key-exchange initialisation failed");
+	    if (ssh_gss_display_status(&s->gss_ctx, &gss_buf) == SSH_GSS_OK) {
+		logevent(gss_buf.value);
+		sfree(gss_buf.value);
+	    }
+	    ssh->can_gssapi = 0;
+	}
+    }
+#endif
+
     ssh->pkt_kctx = SSH2_PKTCTX_NOKEX;
     {
 	int i, j, commalist_started;
@@ -6033,14 +6060,14 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
              */
             s->pbits = 512 << ((s->nbits - 1) / 64);
 
-            s->pktout = ssh2_pkt_init(SSH2_MSG_KEXGSS_GEX_REQUEST);
+            s->pktout = ssh2_pkt_init(SSH2_MSG_KEXGSS_GROUPREQ);
             ssh2_pkt_adduint32(s->pktout, 1024);
             ssh2_pkt_adduint32(s->pktout, s->pbits);
             ssh2_pkt_adduint32(s->pktout, 8192);
             ssh2_pkt_send_noqueue(ssh, s->pktout);
 
             crWaitUntil(pktin);
-            if (pktin->type != SSH2_MSG_KEXGSS_GEX_GROUP) {
+            if (pktin->type != SSH2_MSG_KEXGSS_GROUP) {
                 bombout(("expected GSSAPI key exchange group packet from server"));
                 crStop(0);
             }
@@ -6098,7 +6125,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
                 }
                 ssh_pkt_getstring(pktin, (char**)&s->gss_rcvtok.value, (int*)&s->gss_rcvtok.length);
                 s->gss_stat = ssh_gss_init_sec_context(
-                        &ssh->gss_ctx,
+                        &s->gss_ctx,
                         ssh->gss_srv_name,
                         ssh->cfg.gssapifwd,
                         &s->gss_rcvtok,
@@ -6132,7 +6159,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
             }
             ssh_pkt_getstring(pktin, (char**)&s->gss_rcvtok.value, (int*)&s->gss_rcvtok.length);
             s->gss_stat = ssh_gss_init_sec_context(
-                    &ssh->gss_ctx,
+                    &s->gss_ctx,
                     ssh->gss_srv_name,
                     ssh->cfg.gssapifwd,
                     &s->gss_rcvtok,
@@ -6162,11 +6189,16 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
         hash_mpint(ssh->kex->hash, ssh->exhash, s->f);
 
         dh_cleanup(ssh->kex_ctx);
+
         freebn(s->f);
         if (!ssh->kex->pdata) {
             freebn(s->g);
             freebn(s->p);
         }
+
+        ssh->did_gssapi = 1;
+        if (s->gss_ctx != ssh->gss_ctx)
+            ssh_gss_release_cred(s->gss_ctx);
 #endif
     } else {
 	logeventf(ssh, "Doing RSA key exchange with hash %s",
@@ -6288,7 +6320,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	buf.length = ssh->kex->hash->hlen;
 	mic.value = s->sigdata;
 	mic.length = s->siglen;
-	if (ssh_gss_verify_mic(ssh->gss_ctx, &buf, &mic) != SSH_GSS_OK) {
+	if (ssh_gss_verify_mic(s->gss_ctx, &buf, &mic) != SSH_GSS_OK) {
 	    bombout(("GSSAPI key-exchange MIC verification failed"));
 	    crStop(0);
 	}
@@ -9286,8 +9318,8 @@ static void ssh2_protocol_setup(Ssh ssh)
     /* ssh->packet_dispatch[SSH2_MSG_KEX_DH_GEX_GROUP] = NULL; duplicate case value */
     ssh->packet_dispatch[SSH2_MSG_KEX_DH_GEX_INIT] = NULL;
     ssh->packet_dispatch[SSH2_MSG_KEX_DH_GEX_REPLY] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_KEXGSS_GEX_REQUEST] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_KEXGSS_GEX_GROUP] = NULL;
+    ssh->packet_dispatch[SSH2_MSG_KEXGSS_GROUPREQ] = NULL;
+    ssh->packet_dispatch[SSH2_MSG_KEXGSS_GROUP] = NULL;
     ssh->packet_dispatch[SSH2_MSG_USERAUTH_REQUEST] = NULL;
     ssh->packet_dispatch[SSH2_MSG_USERAUTH_FAILURE] = NULL;
     ssh->packet_dispatch[SSH2_MSG_USERAUTH_SUCCESS] = NULL;
