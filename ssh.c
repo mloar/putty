@@ -91,13 +91,13 @@
 #define SSH2_MSG_KEXRSA_PUBKEY                    30    /* 0x1e */
 #define SSH2_MSG_KEXRSA_SECRET                    31    /* 0x1f */
 #define SSH2_MSG_KEXRSA_DONE                      32    /* 0x20 */
-#define SSH2_MSG_KEXGSS_INIT                      30
-#define SSH2_MSG_KEXGSS_CONTINUE                  31
-#define SSH2_MSG_KEXGSS_COMPLETE                  32
-#define SSH2_MSG_KEXGSS_HOSTKEY                   33
-#define SSH2_MSG_KEXGSS_ERROR                     34
-#define SSH2_MSG_KEXGSS_GROUPREQ                  40
-#define SSH2_MSG_KEXGSS_GROUP                     41
+#define SSH2_MSG_KEXGSS_INIT                      30	/* 0x1e */
+#define SSH2_MSG_KEXGSS_CONTINUE                  31	/* 0x1f */
+#define SSH2_MSG_KEXGSS_COMPLETE                  32	/* 0x20 */
+#define SSH2_MSG_KEXGSS_HOSTKEY                   33	/* 0x21 */
+#define SSH2_MSG_KEXGSS_ERROR                     34	/* 0x22 */
+#define SSH2_MSG_KEXGSS_GEX_REQUEST               40	/* 0x1e */
+#define SSH2_MSG_KEXGSS_GEX_GROUP                 41	/* 0x1f */
 #define SSH2_MSG_USERAUTH_REQUEST                 50	/* 0x32 */
 #define SSH2_MSG_USERAUTH_FAILURE                 51	/* 0x33 */
 #define SSH2_MSG_USERAUTH_SUCCESS                 52	/* 0x34 */
@@ -136,7 +136,8 @@ typedef enum {
     SSH2_PKTCTX_DHGROUP,
     SSH2_PKTCTX_DHGEX,
     SSH2_PKTCTX_RSAKEX,
-    SSH2_PKTCTX_GSSKEX
+    SSH2_PKTCTX_GSSGROUP,
+    SSH2_PKTCTX_GSSGEX
 } Pkt_KCtx;
 typedef enum {
     SSH2_PKTCTX_NOAUTH,
@@ -376,6 +377,20 @@ static char *ssh2_pkt_type(Pkt_KCtx pkt_kctx, Pkt_ACtx pkt_actx, int type)
     translatek(SSH2_MSG_KEX_DH_GEX_GROUP, SSH2_PKTCTX_DHGEX);
     translatek(SSH2_MSG_KEX_DH_GEX_INIT, SSH2_PKTCTX_DHGEX);
     translatek(SSH2_MSG_KEX_DH_GEX_REPLY, SSH2_PKTCTX_DHGEX);
+#ifndef NO_GSSAPI
+    translatek(SSH2_MSG_KEXGSS_INIT, SSH2_PKTCTX_GSSGROUP);
+    translatek(SSH2_MSG_KEXGSS_CONTINUE, SSH2_PKTCTX_GSSGROUP);
+    translatek(SSH2_MSG_KEXGSS_COMPLETE, SSH2_PKTCTX_GSSGROUP);
+    translatek(SSH2_MSG_KEXGSS_HOSTKEY, SSH2_PKTCTX_GSSGROUP);
+    translatek(SSH2_MSG_KEXGSS_ERROR, SSH2_PKTCTX_GSSGROUP);
+    translatek(SSH2_MSG_KEXGSS_GEX_REQUEST, SSH2_PKTCTX_GSSGEX);
+    translatek(SSH2_MSG_KEXGSS_GEX_GROUP, SSH2_PKTCTX_GSSGEX);
+    translatek(SSH2_MSG_KEXGSS_INIT, SSH2_PKTCTX_GSSGEX);
+    translatek(SSH2_MSG_KEXGSS_CONTINUE, SSH2_PKTCTX_GSSGEX);
+    translatek(SSH2_MSG_KEXGSS_COMPLETE, SSH2_PKTCTX_GSSGEX);
+    translatek(SSH2_MSG_KEXGSS_HOSTKEY, SSH2_PKTCTX_GSSGEX);
+    translatek(SSH2_MSG_KEXGSS_ERROR, SSH2_PKTCTX_GSSGEX);
+#endif
     translatek(SSH2_MSG_KEXRSA_PUBKEY, SSH2_PKTCTX_RSAKEX);
     translatek(SSH2_MSG_KEXRSA_SECRET, SSH2_PKTCTX_RSAKEX);
     translatek(SSH2_MSG_KEXRSA_DONE, SSH2_PKTCTX_RSAKEX);
@@ -6008,7 +6023,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
          */
         if (!ssh->kex->pdata) {
             logevent("Doing GSSAPI group exchange");
-            ssh->pkt_kctx = SSH2_PKTCTX_GSSKEX;
+            ssh->pkt_kctx = SSH2_PKTCTX_GSSGEX;
 
             /*
              * Work out how big a DH group we will need to allow that
@@ -6016,14 +6031,14 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
              */
             s->pbits = 512 << ((s->nbits - 1) / 64);
 
-            s->pktout = ssh2_pkt_init(SSH2_MSG_KEXGSS_GROUPREQ);
+            s->pktout = ssh2_pkt_init(SSH2_MSG_KEXGSS_GEX_REQUEST);
             ssh2_pkt_adduint32(s->pktout, 1024);
             ssh2_pkt_adduint32(s->pktout, s->pbits);
             ssh2_pkt_adduint32(s->pktout, 8192);
             ssh2_pkt_send_noqueue(ssh, s->pktout);
 
             crWaitUntil(pktin);
-            if (pktin->type != SSH2_MSG_KEXGSS_GROUP) {
+            if (pktin->type != SSH2_MSG_KEXGSS_GEX_GROUP) {
                 bombout(("expected GSSAPI key exchange group packet from server"));
                 crStop(0);
             }
@@ -6035,13 +6050,9 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
                 crStop(0);
             }
             ssh->kex_ctx = dh_setup_gex(s->p, s->g);
-            s->kex_init_value = SSH2_MSG_KEX_DH_GEX_INIT;
-            s->kex_reply_value = SSH2_MSG_KEX_DH_GEX_REPLY;
         } else {
-            ssh->pkt_kctx = SSH2_PKTCTX_GSSKEX;
+            ssh->pkt_kctx = SSH2_PKTCTX_GSSGROUP;
             ssh->kex_ctx = dh_setup_group(ssh->kex);
-            s->kex_init_value = SSH2_MSG_KEXGSS_INIT;
-            s->kex_reply_value = SSH2_MSG_KEXGSS_COMPLETE;
             logeventf(ssh, "Using GSSAPI Diffie-Hellman with standard group \"%s\"",
                       ssh->kex->groupname);
         }
@@ -6078,7 +6089,6 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
                     crStop(0);
                 }
                 ssh_pkt_getstring(pktin, &s->hostkeydata, &s->hostkeylen);
-                hash_string(ssh->kex->hash, ssh->exhash, s->hostkeydata, s->hostkeylen);
             } else if (pktin->type == SSH2_MSG_KEXGSS_CONTINUE) {
                 if (s->gss_stat != SSH_GSS_S_CONTINUE_NEEDED) {
                     bombout(("unexpected gsskex continuation packet"));
@@ -6127,7 +6137,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
                     &s->gss_sndtok);
             if (s->gss_stat != SSH_GSS_OK)
             {
-                bombout(("should have completed gsskex"));
+                bombout(("should have completed GSSAPI key exchange"));
                 crStop(0);
             }
         }
@@ -6138,6 +6148,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 
         /* Finish constructing the hash H */
         s->K = dh_find_K(ssh->kex_ctx, s->f);
+        hash_string(ssh->kex->hash, ssh->exhash, s->hostkeydata, s->hostkeylen);
         if (!ssh->kex->pdata) {
             hash_uint32(ssh->kex->hash, ssh->exhash, 1024);
             hash_uint32(ssh->kex->hash, ssh->exhash, s->pbits);
@@ -6149,6 +6160,11 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
         hash_mpint(ssh->kex->hash, ssh->exhash, s->f);
 
         dh_cleanup(ssh->kex_ctx);
+        freebn(s->f);
+        if (!ssh->kex->pdata) {
+            freebn(s->g);
+            freebn(s->p);
+        }
 #endif
     } else {
 	logeventf(ssh, "Doing RSA key exchange with hash %s",
@@ -9262,6 +9278,8 @@ static void ssh2_protocol_setup(Ssh ssh)
     /* ssh->packet_dispatch[SSH2_MSG_KEX_DH_GEX_GROUP] = NULL; duplicate case value */
     ssh->packet_dispatch[SSH2_MSG_KEX_DH_GEX_INIT] = NULL;
     ssh->packet_dispatch[SSH2_MSG_KEX_DH_GEX_REPLY] = NULL;
+    ssh->packet_dispatch[SSH2_MSG_KEXGSS_GEX_REQUEST] = NULL;
+    ssh->packet_dispatch[SSH2_MSG_KEXGSS_GEX_GROUP] = NULL;
     ssh->packet_dispatch[SSH2_MSG_USERAUTH_REQUEST] = NULL;
     ssh->packet_dispatch[SSH2_MSG_USERAUTH_FAILURE] = NULL;
     ssh->packet_dispatch[SSH2_MSG_USERAUTH_SUCCESS] = NULL;
