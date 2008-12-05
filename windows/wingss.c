@@ -164,7 +164,11 @@ Ssh_gss_stat ssh_gss_init_sec_context(Ssh_gss_ctx *ctx,
     send_tok->length = wsend_tok.cbBuffer;
   
     /* check & return our status */
-    if (winctx->maj_stat==SEC_E_OK) return SSH_GSS_S_COMPLETE;
+    if (winctx->maj_stat==SEC_E_OK) {
+	if (ret_flags & (flags & ~ISC_REQ_DELEGATE) != (flags & ~ISC_REQ_DELEGATE))
+	    return SSH_GSS_FAILURE;
+	return SSH_GSS_S_COMPLETE;
+    }
     if (winctx->maj_stat==SEC_I_CONTINUE_NEEDED) return SSH_GSS_S_CONTINUE_NEEDED;
     
     return SSH_GSS_FAILURE;

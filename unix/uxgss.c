@@ -89,7 +89,12 @@ Ssh_gss_stat ssh_gss_init_sec_context(Ssh_gss_ctx *ctx,
 					   &ret_flags,
 					   NULL);  /* ignore time_rec */
   
-    if (uxctx->maj_stat == GSS_S_COMPLETE) return SSH_GSS_S_COMPLETE;
+    if (uxctx->maj_stat == GSS_S_COMPLETE) {
+	if ((ret_flags & (GSS_C_MUTUAL_FLAG | GSS_C_INTEG_FLAG)) !=
+		(GSS_C_MUTUAL_FLAG | GSS_C_INTEG_FLAG))
+	    return SSH_GSS_FAILURE;
+	return SSH_GSS_S_COMPLETE;
+    }
     if (uxctx->maj_stat == GSS_S_CONTINUE_NEEDED) return SSH_GSS_S_CONTINUE_NEEDED;
     return SSH_GSS_FAILURE;
 }
