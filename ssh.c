@@ -6118,6 +6118,9 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
                     crStop(0);
                 }
                 ssh_pkt_getstring(pktin, &s->hostkeydata, &s->hostkeylen);
+                /* Do the hash now to avoid needing to copy. */
+                if (s->hostkeylen != 0)
+                    hash_string(ssh->kex->hash, ssh->exhash, s->hostkeydata, s->hostkeylen);
             } else if (pktin->type == SSH2_MSG_KEXGSS_CONTINUE) {
                 if (s->gss_stat != SSH_GSS_S_CONTINUE_NEEDED) {
                     bombout(("unexpected gsskex continuation packet"));
@@ -6177,7 +6180,9 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 
         /* Finish constructing the hash H */
         s->K = dh_find_K(ssh->kex_ctx, s->f);
-        hash_string(ssh->kex->hash, ssh->exhash, s->hostkeydata, s->hostkeylen);
+        /* If we didn't get a HOSTKEY message, add the empty string. */
+        if (s->hostkeylen == 0)
+          hash_string(ssh->kex->hash, ssh->exhash, NULL, 0);
         if (!ssh->kex->pdata) {
             hash_uint32(ssh->kex->hash, ssh->exhash, 1024);
             hash_uint32(ssh->kex->hash, ssh->exhash, s->pbits);
