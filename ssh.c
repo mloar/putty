@@ -5047,10 +5047,10 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
 	}
     }
 
-    if (ssh->cfg.x11_forward) {
+    if (ssh->cfg.x11_forward &&
+	(ssh->x11disp = x11_setup_display(ssh->cfg.x11_display,
+					  ssh->cfg.x11_auth, &ssh->cfg))) {
 	logevent("Requesting X11 forwarding");
-	ssh->x11disp = x11_setup_display(ssh->cfg.x11_display,
-					 ssh->cfg.x11_auth, &ssh->cfg);
 	/*
 	 * Note that while we blank the X authentication data here, we don't
 	 * take any special action to blank the start of an X11 channel,
@@ -7333,6 +7333,7 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 
     if (typelen == 3 && !memcmp(type, "x11", 3)) {
 	char *addrstr;
+	const char *x11err;
 
 	ssh_pkt_getstring(pktin, &peeraddr, &peeraddrlen);
 	addrstr = snewn(peeraddrlen+1, char);
@@ -7345,8 +7346,9 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 
 	if (!ssh->X11_fwd_enabled)
 	    error = "X11 forwarding is not enabled";
-	else if (x11_init(&c->u.x11.s, ssh->x11disp, c,
-			  addrstr, peerport, &ssh->cfg) != NULL) {
+	else if ((x11err = x11_init(&c->u.x11.s, ssh->x11disp, c,
+				    addrstr, peerport, &ssh->cfg)) != NULL) {
+	    logeventf(ssh, "Local X11 connection failed: %s", x11err);
 	    error = "Unable to open an X11 connection";
 	} else {
 	    logevent("Opening X11 forward connection succeeded");
@@ -8940,10 +8942,10 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
     /*
      * Potentially enable X11 forwarding.
      */
-    if (ssh->mainchan && !ssh->ncmode && ssh->cfg.x11_forward) {
+    if (ssh->mainchan && !ssh->ncmode && ssh->cfg.x11_forward &&
+	(ssh->x11disp = x11_setup_display(ssh->cfg.x11_display,
+					  ssh->cfg.x11_auth, &ssh->cfg))) {
 	logevent("Requesting X11 forwarding");
-	ssh->x11disp = x11_setup_display(ssh->cfg.x11_display,
-					 ssh->cfg.x11_auth, &ssh->cfg);
 	s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
 	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->remoteid);
 	ssh2_pkt_addstring(s->pktout, "x11-req");

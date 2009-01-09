@@ -301,7 +301,9 @@ static int sk_nextaddr(SockAddr addr, SockAddrStep *step)
 
 void sk_getaddr(SockAddr addr, char *buf, int buflen)
 {
-
+    /* XXX not clear what we should return for Unix-domain sockets; let's
+     * hope the question never arises */
+    assert(addr->superfamily != UNIX);
     if (addr->superfamily == UNRESOLVED) {
 	strncpy(buf, addr->hostname, buflen);
 	buf[buflen-1] = '\0';
@@ -326,7 +328,9 @@ void sk_getaddr(SockAddr addr, char *buf, int buflen)
 
 int sk_hostname_is_local(char *name)
 {
-    return !strcmp(name, "localhost");
+    return !strcmp(name, "localhost") ||
+	   !strcmp(name, "::1") ||
+	   !strncmp(name, "127.", 4);
 }
 
 #define ipv4_is_loopback(addr) \
@@ -357,9 +361,10 @@ static int sockaddr_is_loopback(struct sockaddr *sa)
 
 int sk_address_is_local(SockAddr addr)
 {
-
     if (addr->superfamily == UNRESOLVED)
 	return 0;                      /* we don't know; assume not */
+    else if (addr->superfamily == UNIX)
+	return 1;
     else {
 #ifndef NO_IPV6
 	return sockaddr_is_loopback(addr->ais->ai_addr);

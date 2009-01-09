@@ -1325,7 +1325,7 @@ debug(("\n           rect: [%d,%d %d,%d]\n", newrc.left, newrc.top, newrc.right,
 #ifdef FIXME_REMOVE_BEFORE_CHECKIN
 debug(("general_textout: done, xn=%d\n", xn));
 #endif
-    assert(xn - x == lprc->right - lprc->left);
+    assert(xn - x >= lprc->right - lprc->left);
 }
 
 /*
@@ -2249,7 +2249,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    term_copyall(term);
 	    break;
 	  case IDM_PASTE:
-	    term_do_paste(term);
+	    request_paste(NULL);
 	    break;
 	  case IDM_CLRSB:
 	    term_clrsb(term);
@@ -3048,16 +3048,22 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 		if (send_raw_mouse &&
 		    !(cfg.mouse_override && shift_pressed)) {
-		    /* send a mouse-down followed by a mouse up */
-		    term_mouse(term, b, translate_button(b),
-			       MA_CLICK,
-			       TO_CHR_X(X_POS(lParam)),
-			       TO_CHR_Y(Y_POS(lParam)), shift_pressed,
-			       control_pressed, is_alt_pressed());
-		    term_mouse(term, b, translate_button(b),
-			       MA_RELEASE, TO_CHR_X(X_POS(lParam)),
-			       TO_CHR_Y(Y_POS(lParam)), shift_pressed,
-			       control_pressed, is_alt_pressed());
+		    /* Mouse wheel position is in screen coordinates for
+		     * some reason */
+		    POINT p;
+		    p.x = X_POS(lParam); p.y = Y_POS(lParam);
+		    if (ScreenToClient(hwnd, &p)) {
+			/* send a mouse-down followed by a mouse up */
+			term_mouse(term, b, translate_button(b),
+				   MA_CLICK,
+				   TO_CHR_X(p.x),
+				   TO_CHR_Y(p.y), shift_pressed,
+				   control_pressed, is_alt_pressed());
+			term_mouse(term, b, translate_button(b),
+				   MA_RELEASE, TO_CHR_X(p.x),
+				   TO_CHR_Y(p.y), shift_pressed,
+				   control_pressed, is_alt_pressed());
+		    } /* else: not sure when this can fail */
 		} else {
 		    /* trigger a scroll */
 		    term_scroll(term, 0,
@@ -3809,7 +3815,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    return 0;
 	}
 	if (wParam == VK_INSERT && shift_state == 1) {
-	    term_do_paste(term);
+	    request_paste(NULL);
 	    return 0;
 	}
 	if (left_alt && wParam == VK_F4 && cfg.alt_f4) {
@@ -4916,8 +4922,6 @@ static DWORD WINAPI clipboard_read_threadfunc(void *param)
 
 static int process_clipdata(HGLOBAL clipdata, int unicode)
 {
-    static wchar_t *converted = 0;
-
     sfree(clipboard_contents);
     clipboard_contents = NULL;
     clipboard_length = 0;

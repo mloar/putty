@@ -937,16 +937,18 @@ if (defined $makefiles{'gtk'}) {
     "\n".
     "-include Makefile.local\n".
     "\n".
+    "unexport CFLAGS # work around a weird issue with krb5-config\n".
+    "\n".
     &splitline("CFLAGS = -O2 -Wall -Werror -g " .
 	       (join " ", map {"-I$dirpfx$_"} @srcdirs) .
-	       " `\$(GTK_CONFIG) --cflags`").
+	       " \$(shell \$(GTK_CONFIG) --cflags)").
 		 " -D _FILE_OFFSET_BITS=64\n".
-    "XLDFLAGS = \$(LDFLAGS) `\$(GTK_CONFIG) --libs`\n".
+    "XLDFLAGS = \$(LDFLAGS) \$(shell \$(GTK_CONFIG) --libs)\n".
     "ULDFLAGS = \$(LDFLAGS)\n".
     "ifeq (,\$(findstring NO_GSSAPI,\$(COMPAT)))\n".
-    "CFLAGS+= `\$(KRB5CONFIG) --cflags gssapi`\n".
-    "XLDFLAGS+= `\$(KRB5CONFIG) --libs gssapi`\n".
-    "ULDFLAGS = `\$(KRB5CONFIG) --libs gssapi`\n".
+    "CFLAGS+= \$(shell \$(KRB5CONFIG) --cflags gssapi)\n".
+    "XLDFLAGS+= \$(shell \$(KRB5CONFIG) --libs gssapi)\n".
+    "ULDFLAGS = \$(shell \$(KRB5CONFIG) --libs gssapi)\n".
     "endif\n".
     "INSTALL=install\n".
     "INSTALL_PROGRAM=\$(INSTALL)\n".
@@ -1048,6 +1050,9 @@ if (defined $makefiles{'ac'}) {
     print $makefile_extra{'gtk'}->{'end'};
     print "\nclean:\n".
     "\trm -f *.o". (join "", map { " $_" } &progrealnames("X:U")) . "\n";
+    print "\ndistclean: clean\n".
+    "\t". &splitline("rm -f config.status config.cache config.log ".
+		     "configure.lineno config.status.lineno Makefile") . "\n";
     print "\nFORCE:\n";
     select STDOUT; close OUT;
 }
