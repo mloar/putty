@@ -232,6 +232,7 @@ CFLAGS += -DMACOSX
 # WINVER etc perform a similar function for FlashWindowEx().
 CFLAGS += -D_WIN32_IE=0x0500
 CFLAGS += -DWINVER=0x0500 -D_WIN32_WINDOWS=0x0410 -D_WIN32_WINNT=0x0500
+CFLAGS += -D_CRT_SECURE_NO_DEPRECATE
 !end
 
 # ------------------------------------------------------------
