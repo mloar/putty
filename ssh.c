@@ -5458,22 +5458,25 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	    s->gss_ctx = ssh->gss_ctx;
 	}
 
-	s->gss_stat = ssh_gss_init_sec_context(
-		&s->gss_ctx,
-		ssh->gss_srv_name,
-		ssh->cfg.gssapifwd,
-		&s->gss_rcvtok,
-		&s->gss_sndtok);
+	/* Check again in case the credential acquisition failed above */
+	if (ssh->can_gssapi) {
+	    s->gss_stat = ssh_gss_init_sec_context(
+		    &s->gss_ctx,
+		    ssh->gss_srv_name,
+		    ssh->cfg.gssapifwd,
+		    &s->gss_rcvtok,
+		    &s->gss_sndtok);
 
-	if (s->gss_stat != SSH_GSS_OK && s->gss_stat != SSH_GSS_S_CONTINUE_NEEDED) {
-	    Ssh_gss_buf gss_buf;
+	    if (s->gss_stat != SSH_GSS_OK && s->gss_stat != SSH_GSS_S_CONTINUE_NEEDED) {
+		Ssh_gss_buf gss_buf;
 
-	    logevent("GSSAPI key-exchange initialisation failed");
-	    if (ssh_gss_display_status(&s->gss_ctx, &gss_buf) == SSH_GSS_OK) {
-		logevent(gss_buf.value);
-		sfree(gss_buf.value);
+		logevent("GSSAPI key-exchange initialisation failed");
+		if (ssh_gss_display_status(s->gss_ctx, &gss_buf) == SSH_GSS_OK) {
+		    logevent(gss_buf.value);
+		    sfree(gss_buf.value);
+		}
+		ssh->can_gssapi = 0;
 	    }
-	    ssh->can_gssapi = 0;
 	}
     }
 #endif
@@ -8349,7 +8352,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 			s->gss_stat!=SSH_GSS_S_CONTINUE_NEEDED) {
 			logevent("GSSAPI authentication initialisation failed");
 
-			if (ssh_gss_display_status(s->gss_ctx,&s->gss_buf) == SSH_GSS_OK) {
+			if (ssh_gss_display_status(s->gss_ctx, &s->gss_buf) == SSH_GSS_OK) {
 			    logevent(s->gss_buf.value);
 			    sfree(s->gss_buf.value);
 			}
