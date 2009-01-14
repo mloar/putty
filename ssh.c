@@ -8332,7 +8332,6 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 
 		if (s->gss_stat != SSH_GSS_OK) {
 		    logevent("GSSAPI authentication failed to get credentials");
-		    //ssh_gss_release_name(&s->gss_srv_name);
 		    continue;
 		}
 
