@@ -952,6 +952,8 @@ struct ssh_tag {
     int can_gssapi, did_gssapi;
     Ssh_gss_ctx gss_ctx;
     Ssh_gss_name gss_srv_name;
+
+    char *serverkeytype, *serverhostkey;
 #endif
 };
 
@@ -3009,6 +3011,8 @@ static const char *connect_to_host(Ssh ssh, char *host, int port,
 #ifndef NO_GSSAPI
     ssh->gss_ctx = NULL;
     memset(&ssh->gss_srv_name, 0, sizeof(Ssh_gss_name));
+    ssh->serverkeytype = NULL;
+    ssh->serverhostkey = NULL;
 
     if (!ssh->cfg.try_gssapi_auth || !ssh_gss_init())
 	ssh->can_gssapi = 0;
@@ -6122,8 +6126,20 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
                 }
                 ssh_pkt_getstring(pktin, &s->hostkeydata, &s->hostkeylen);
                 /* Do the hash now to avoid needing to copy. */
-                if (s->hostkeylen != 0)
+                if (s->hostkeylen != 0) {
                     hash_string(ssh->kex->hash, ssh->exhash, s->hostkeydata, s->hostkeylen);
+                    /*
+                     * From RFC 4462:
+                     * "In order to facilitate key re-exchange after the user's GSS-API
+                     * credentials have expired, client implementations SHOULD store host
+                     * keys received via SSH_MSG_KEXGSS_HOSTKEY for the duration of the
+                     * session, even when such keys are not stored for long-term use."
+                     */
+                    s->hkey = ssh->hostkey->newkey(s->hostkeydata, s->hostkeylen);
+                    ssh->serverkeytype = ssh->hostkey->keytype;
+                    ssh->serverhostkey = ssh->hostkey->fmtkey(s->hkey);
+                    ssh->hostkey->freekey(s->hkey);
+                }
             } else if (pktin->type == SSH2_MSG_KEXGSS_CONTINUE) {
                 if (s->gss_stat != SSH_GSS_S_CONTINUE_NEEDED) {
                     bombout(("unexpected gsskex continuation packet"));
@@ -6347,6 +6363,15 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
      * checked the signature of the exchange hash.)
      */
     s->keystr = ssh->hostkey->fmtkey(s->hkey);
+#ifndef NO_GSSAPI
+    /*
+     * If we got a host key during GSSAPI key exchange, check to see if
+     * it is the same as this one, and bypass user verification if so.
+     */
+    if (!ssh->serverkeytype || !ssh->serverhostkey
+            || strcmp(ssh->serverkeytype, ssh->hostkey->keytype) != 0
+            || strcmp(ssh->serverhostkey, s->keystr) != 0) {
+#endif
     s->fingerprint = ssh->hostkey->fingerprint(s->hkey);
     ssh_set_frozen(ssh, 1);
     s->dlgret = verify_ssh_host_key(ssh->frontend,
@@ -6376,6 +6401,9 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	logevent(s->fingerprint);
     }
     sfree(s->fingerprint);
+#ifndef NO_GSSAPI
+    }
+#endif
     sfree(s->keystr);
     ssh->hostkey->freekey(s->hkey);
 
@@ -9608,6 +9636,8 @@ static void ssh_free(void *handle)
 	ssh_gss_release_name(&ssh->gss_srv_name);
     if (ssh->gss_ctx)
 	ssh_gss_release_cred(&ssh->gss_ctx);
+    if (ssh->serverhostkey)
+	sfree(ssh->serverhostkey);
 #endif
     if (ssh->crcda_ctx) {
 	crcda_free_context(ssh->crcda_ctx);
