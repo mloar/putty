@@ -171,7 +171,7 @@ version.o: FORCE
 # Add VER to Windows resource targets, and force them to be rebuilt every
 # time, on the assumption that they will contain version information.
 !begin vc vars
-CFLAGS = $(CFLAGS) /DHAS_GSSAPI
+CFLAGS = $(CFLAGS) /DHAS_GSSAPI /D_CRT_SECURE_NO_DEPRECATE /D_CRT_SECURE_NO_WARNINGS
 RCFLAGS = $(RCFLAGS) $(VER)
 !end
 !begin cygwin vars
@@ -233,7 +233,6 @@ CFLAGS += -DMACOSX
 # WINVER etc perform a similar function for FlashWindowEx().
 CFLAGS += -D_WIN32_IE=0x0500
 CFLAGS += -DWINVER=0x0500 -D_WIN32_WINDOWS=0x0410 -D_WIN32_WINNT=0x0500
-CFLAGS += -D_CRT_SECURE_NO_DEPRECATE
 !end
 
 # ------------------------------------------------------------
