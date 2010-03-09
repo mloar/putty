@@ -50,6 +50,8 @@ static void source(char *src);
 static void rsource(char *src);
 static void sink(char *targ, char *src);
 
+const char *const appname = "PSCP";
+
 /*
  * The maximum amount of queued data we accept before we stop and
  * wait for the server to process some.
@@ -176,7 +178,8 @@ int from_backend(void *frontend, int is_stderr, const char *data, int datalen)
      */
     if (is_stderr) {
 	if (len > 0)
-	    fwrite(data, 1, len, stderr);
+	    if (fwrite(data, 1, len, stderr) < len)
+		/* oh well */;
 	return 0;
     }
 
@@ -2091,7 +2094,7 @@ static void get_dir_list(int argc, char *argv[])
     host = src;
     src = colon(src);
     if (src == NULL)
-	bump("Local to local copy not supported");
+	bump("Local file listing not supported");
     *src++ = '\0';
     if (*src == '\0')
 	src = ".";

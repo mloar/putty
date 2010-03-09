@@ -110,7 +110,6 @@ static LPARAM pend_netevent_lParam = 0;
 static void enact_pending_netevent(void);
 static void flash_window(int mode);
 static void sys_cursor_update(void);
-static int is_shift_pressed(void);
 static int get_fullscreen_rect(RECT * ss);
 
 static int caret_x = -1, caret_y = -1;
@@ -636,7 +635,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     guess_height = extra_height + font_height * cfg.height;
     {
 	RECT r;
-		get_fullscreen_rect(&r);
+	get_fullscreen_rect(&r);
 	if (guess_width > r.right - r.left)
 	    guess_width = r.right - r.left;
 	if (guess_height > r.bottom - r.top)
@@ -912,6 +911,8 @@ static void update_savedsess_menu(void)
 	AppendMenu(savedsess_menu, MF_ENABLED,
 		   IDM_SAVED_MIN + (i-1)*MENU_SAVED_STEP,
 		   sesslist.sessions[i]);
+    if (sesslist.nsessions <= 1)
+	AppendMenu(savedsess_menu, MF_GRAYED, IDM_SAVED_MIN, "(No sessions)");
 }
 
 /*
@@ -1908,17 +1909,6 @@ static int is_alt_pressed(void)
     return FALSE;
 }
 
-static int is_shift_pressed(void)
-{
-    BYTE keystate[256];
-    int r = GetKeyboardState(keystate);
-    if (!r)
-	return FALSE;
-    if (keystate[VK_SHIFT] & 0x80)
-	return TRUE;
-    return FALSE;
-}
-
 static int resizing;
 
 void notify_remote_exit(void *fe)
@@ -2113,10 +2103,12 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 		{
 		    /* Disable full-screen if resizing forbidden */
-		    HMENU m = GetSystemMenu (hwnd, FALSE);
-		    EnableMenuItem(m, IDM_FULLSCREEN, MF_BYCOMMAND | 
-				   (cfg.resize_action == RESIZE_DISABLED)
-				   ? MF_GRAYED : MF_ENABLED);
+		    int i;
+		    for (i = 0; i < lenof(popup_menus); i++)
+			EnableMenuItem(popup_menus[i].menu, IDM_FULLSCREEN,
+				       MF_BYCOMMAND | 
+				       (cfg.resize_action == RESIZE_DISABLED)
+				       ? MF_GRAYED : MF_ENABLED);
 		    /* Gracefully unzoom if necessary */
 		    if (IsZoomed(hwnd) &&
 			(cfg.resize_action == RESIZE_DISABLED)) {
@@ -4224,37 +4216,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		break;
 	    }
 	    if (xkey) {
-		if (term->vt52_mode)
-		    p += sprintf((char *) p, "\x1B%c", xkey);
-		else {
-		    int app_flg = (term->app_cursor_keys && !cfg.no_applic_c);
-#if 0
-		    /*
-		     * RDB: VT100 & VT102 manuals both state the
-		     * app cursor keys only work if the app keypad
-		     * is on.
-		     * 
-		     * SGT: That may well be true, but xterm
-		     * disagrees and so does at least one
-		     * application, so I've #if'ed this out and the
-		     * behaviour is back to PuTTY's original: app
-		     * cursor and app keypad are independently
-		     * switchable modes. If anyone complains about
-		     * _this_ I'll have to put in a configurable
-		     * option.
-		     */
-		    if (!term->app_keypad_keys)
-			app_flg = 0;
-#endif
-		    /* Useful mapping of Ctrl-arrows */
-		    if (shift_state == 2)
-			app_flg = !app_flg;
-
-		    if (app_flg)
-			p += sprintf((char *) p, "\x1BO%c", xkey);
-		    else
-			p += sprintf((char *) p, "\x1B[%c", xkey);
-		}
+		p += format_arrow_key(p, term, xkey, shift_state);
 		return p - output;
 	    }
 	}
@@ -5051,16 +5013,12 @@ void modalfatalbox(char *fmt, ...)
     cleanup_exit(1);
 }
 
-typedef BOOL (WINAPI *p_FlashWindowEx_t)(PFLASHWINFO);
-static p_FlashWindowEx_t p_FlashWindowEx = NULL;
+DECL_WINDOWS_FUNCTION(static, BOOL, FlashWindowEx, (PFLASHWINFO));
 
 static void init_flashwindow(void)
 {
     HMODULE user32_module = LoadLibrary("USER32.DLL");
-    if (user32_module) {
-	p_FlashWindowEx = (p_FlashWindowEx_t)
-	    GetProcAddress(user32_module, "FlashWindowEx");
-    }
+    GET_WINDOWS_FUNCTION(user32_module, FlashWindowEx);
 }
 
 static BOOL flash_window_ex(DWORD dwFlags, UINT uCount, DWORD dwTimeout)
@@ -5372,9 +5330,12 @@ static void make_full_screen()
 
     reset_window(0);
 
-    /* Tick the menu item in the System menu. */
-    CheckMenuItem(GetSystemMenu(hwnd, FALSE), IDM_FULLSCREEN,
-		  MF_CHECKED);
+    /* Tick the menu item in the System and context menus. */
+    {
+	int i;
+	for (i = 0; i < lenof(popup_menus); i++)
+	    CheckMenuItem(popup_menus[i].menu, IDM_FULLSCREEN, MF_CHECKED);
+    }
 }
 
 /*
@@ -5402,9 +5363,12 @@ static void clear_full_screen()
 		     SWP_FRAMECHANGED);
     }
 
-    /* Untick the menu item in the System menu. */
-    CheckMenuItem(GetSystemMenu(hwnd, FALSE), IDM_FULLSCREEN,
-		  MF_UNCHECKED);
+    /* Untick the menu item in the System and context menus. */
+    {
+	int i;
+	for (i = 0; i < lenof(popup_menus); i++)
+	    CheckMenuItem(popup_menus[i].menu, IDM_FULLSCREEN, MF_UNCHECKED);
+    }
 }
 
 /*

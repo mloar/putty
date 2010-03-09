@@ -5262,8 +5262,17 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 
 		set = (uc & CSET_MASK);
 		c = (uc & ~CSET_MASK);
-		cbuf[0] = uc;
-		cbuf[1] = 0;
+#ifdef PLATFORM_IS_UTF16
+		if (uc > 0x10000 && uc < 0x110000) {
+		    cbuf[0] = 0xD800 | ((uc - 0x10000) >> 10);
+		    cbuf[1] = 0xDC00 | ((uc - 0x10000) & 0x3FF);
+		    cbuf[2] = 0;
+		} else
+#endif
+		{
+		    cbuf[0] = uc;
+		    cbuf[1] = 0;
+		}
 
 		if (DIRECT_FONT(uc)) {
 		    if (c >= ' ' && c != 0x7F) {
@@ -5835,6 +5844,42 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
     term_update(term);
 }
 
+int format_arrow_key(char *buf, Terminal *term, int xkey, int ctrl)
+{
+    char *p = buf;
+
+    if (term->vt52_mode)
+	p += sprintf((char *) p, "\x1B%c", xkey);
+    else {
+	int app_flg = (term->app_cursor_keys && !term->cfg.no_applic_c);
+#if 0
+	/*
+	 * RDB: VT100 & VT102 manuals both state the app cursor
+	 * keys only work if the app keypad is on.
+	 *
+	 * SGT: That may well be true, but xterm disagrees and so
+	 * does at least one application, so I've #if'ed this out
+	 * and the behaviour is back to PuTTY's original: app
+	 * cursor and app keypad are independently switchable
+	 * modes. If anyone complains about _this_ I'll have to
+	 * put in a configurable option.
+	 */
+	if (!term->app_keypad_keys)
+	    app_flg = 0;
+#endif
+	/* Useful mapping of Ctrl-arrows */
+	if (ctrl)
+	    app_flg = !app_flg;
+
+	if (app_flg)
+	    p += sprintf((char *) p, "\x1BO%c", xkey);
+	else
+	    p += sprintf((char *) p, "\x1B[%c", xkey);
+    }
+
+    return p - buf;
+}
+
 void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
 	      unsigned int modifiers, unsigned int flags)
 {
@@ -6211,20 +6256,7 @@ void term_key(Terminal *term, Key_Sym keysym, wchar_t *text, size_t tlen,
 	  case PK_REST:  xkey = 'G'; break; /* centre key on number pad */
 	  default: xkey = 0; break; /* else gcc warns `enum value not used' */
 	}
-	if (term->vt52_mode)
-	    p += sprintf((char *) p, "\x1B%c", xkey);
-	else {
-	    int app_flg = (term->app_cursor_keys && !term->cfg.no_applic_c);
-
-	    /* Useful mapping of Ctrl-arrows */
-	    if (modifiers == PKM_CONTROL)
-		app_flg = !app_flg;
-
-	    if (app_flg)
-		p += sprintf((char *) p, "\x1BO%c", xkey);
-	    else
-		p += sprintf((char *) p, "\x1B[%c", xkey);
-	}
+	p += format_arrow_key(p, term, xkey, modifiers == PKM_CONTROL);
 	goto done;
     }
 

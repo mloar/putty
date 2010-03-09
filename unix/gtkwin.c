@@ -167,14 +167,9 @@ int platform_default_i(const char *name, int def)
     return def;
 }
 
+/* Dummy routine, only required in plink. */
 void ldisc_update(void *frontend, int echo, int edit)
 {
-    /*
-     * This is a stub in pterm. If I ever produce a Unix
-     * command-line ssh/telnet/rlogin client (i.e. a port of plink)
-     * then it will require some termios manoeuvring analogous to
-     * that in the Windows plink.c, but here it's meaningless.
-     */
 }
 
 char *get_ttymode(void *frontend, const char *mode)
@@ -501,9 +496,9 @@ gint expose_area(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
-    char output[32];
+    char output[256];
     wchar_t ucsoutput[2];
-    int ucsval, start, end, special, use_ucsoutput;
+    int ucsval, start, end, special, output_charset, use_ucsoutput;
 
     /* Remember the timestamp. */
     inst->input_event_time = event->time;
@@ -511,6 +506,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
     /* By default, nothing is generated. */
     end = start = 0;
     special = use_ucsoutput = FALSE;
+    output_charset = CS_ISO8859_1;
 
     /*
      * If Alt is being released after typing an Alt+numberpad
@@ -529,6 +525,11 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 #ifdef KEY_DEBUGGING
 	printf("Alt key up, keycode = %d\n", inst->alt_keycode);
 #endif
+	/*
+	 * FIXME: we might usefully try to do something clever here
+	 * about interpreting the generated key code in a way that's
+	 * appropriate to the line code page.
+	 */
 	output[0] = inst->alt_keycode;
 	end = 1;
 	goto done;
@@ -636,15 +637,57 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
 	/* ALT+things gives leading Escape. */
 	output[0] = '\033';
-	strncpy(output+1, event->string, 31);
-	if (!*event->string &&
+#if !GTK_CHECK_VERSION(2,0,0)
+	/*
+	 * In vanilla X, and hence also GDK 1.2, the string received
+	 * as part of a keyboard event is assumed to be in
+	 * ISO-8859-1. (Seems woefully shortsighted in i18n terms,
+	 * but it's true: see the man page for XLookupString(3) for
+	 * confirmation.)
+	 */
+	output_charset = CS_ISO8859_1;
+	strncpy(output+1, event->string, lenof(output)-1);
+#else
+	/*
+	 * GDK 2.0 arranges to have done some translation for us: in
+	 * GDK 2.0, event->string is encoded in the current locale.
+	 *
+	 * (However, it's also deprecated; we really ought to be
+	 * using a GTKIMContext.)
+	 *
+	 * So we use the standard C library function mbstowcs() to
+	 * convert from the current locale into Unicode; from there
+	 * we can convert to whatever PuTTY is currently working in.
+	 * (In fact I convert straight back to UTF-8 from
+	 * wide-character Unicode, for the sake of simplicity: that
+	 * way we can still use exactly the same code to manipulate
+	 * the string, such as prefixing ESC.)
+	 */
+	output_charset = CS_UTF8;
+	{
+	    wchar_t widedata[32], *wp;
+	    int wlen;
+	    int ulen;
+
+	    wlen = mb_to_wc(DEFAULT_CODEPAGE, 0,
+			    event->string, strlen(event->string),
+			    widedata, lenof(widedata)-1);
+
+	    wp = widedata;
+	    ulen = charset_from_unicode(&wp, &wlen, output+1, lenof(output)-2,
+					CS_UTF8, NULL, NULL, 0);
+	    output[1+ulen] = '\0';
+	}
+#endif
+
+	if (!output[1] &&
 	    (ucsval = keysym_to_unicode(event->keyval)) >= 0) {
 	    ucsoutput[0] = '\033';
 	    ucsoutput[1] = ucsval;
 	    use_ucsoutput = TRUE;
 	    end = 2;
 	} else {
-	    output[31] = '\0';
+	    output[lenof(output)-1] = '\0';
 	    end = strlen(output);
 	}
 	if (event->state & GDK_MOD1_MASK) {
@@ -654,7 +697,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    start = 1;
 
 	/* Control-` is the same as Control-\ (unless gtk has a better idea) */
-	if (!event->string[0] && event->keyval == '`' &&
+	if (!output[1] && event->keyval == '`' &&
 	    (event->state & GDK_CONTROL_MASK)) {
 	    output[1] = '\x1C';
 	    use_ucsoutput = FALSE;
@@ -679,7 +722,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	}
 
 	/* Control-2, Control-Space and Control-@ are NUL */
-	if (!event->string[0] &&
+	if (!output[1] &&
 	    (event->keyval == ' ' || event->keyval == '2' ||
 	     event->keyval == '@') &&
 	    (event->state & (GDK_SHIFT_MASK |
@@ -690,10 +733,11 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	}
 
 	/* Control-Shift-Space is 160 (ISO8859 nonbreaking space) */
-	if (!event->string[0] && event->keyval == ' ' &&
+	if (!output[1] && event->keyval == ' ' &&
 	    (event->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) ==
 	    (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) {
 	    output[1] = '\240';
+	    output_charset = CS_ISO8859_1;
 	    use_ucsoutput = FALSE;
 	    end = 2;
 	}
@@ -1008,19 +1052,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	      case GDK_Begin: case GDK_KP_Begin: xkey = 'G'; break;
 	    }
 	    if (xkey) {
-		/*
-		 * The arrow keys normally do ESC [ A and so on. In
-		 * app cursor keys mode they do ESC O A instead.
-		 * Ctrl toggles the two modes.
-		 */
-		if (inst->term->vt52_mode) {
-		    end = 1 + sprintf(output+1, "\033%c", xkey);
-		} else if (!inst->term->app_cursor_keys ^
-			   !(event->state & GDK_CONTROL_MASK)) {
-		    end = 1 + sprintf(output+1, "\033O%c", xkey);
-		} else {		    
-		    end = 1 + sprintf(output+1, "\033[%c", xkey);
-		}
+		end = 1 + format_arrow_key(output+1, inst->term, xkey,
+					   event->state & GDK_CONTROL_MASK);
 		use_ucsoutput = FALSE;
 		goto done;
 	    }
@@ -1049,20 +1082,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		ldisc_send(inst->ldisc, output+start, -2, 1);
 	} else if (!inst->direct_to_font) {
 	    if (!use_ucsoutput) {
-		/*
-		 * The stuff we've just generated is assumed to be
-		 * ISO-8859-1! This sounds insane, but `man
-		 * XLookupString' agrees: strings of this type
-		 * returned from the X server are hardcoded to
-		 * 8859-1. Strictly speaking we should be doing
-		 * this using some sort of GtkIMContext, which (if
-		 * we're lucky) would give us our data directly in
-		 * Unicode; but that's not supported in GTK 1.2 as
-		 * far as I can tell, and it's poorly documented
-		 * even in 2.0, so it'll have to wait.
-		 */
 		if (inst->ldisc)
-		    lpage_send(inst->ldisc, CS_ISO8859_1, output+start,
+		    lpage_send(inst->ldisc, output_charset, output+start,
 			       end-start, 1);
 	    } else {
 		/*
@@ -1243,7 +1264,7 @@ static gint idle_exit_func(gpointer data)
             term_provide_resize_fn(inst->term, NULL, NULL);
 	    update_specials_menu(inst);
 	}
-	gtk_widget_show(inst->restartitem);
+	gtk_widget_set_sensitive(inst->restartitem, TRUE);
     }
 
     gtk_idle_remove(inst->term_exit_idle_id);
@@ -1259,14 +1280,14 @@ void notify_remote_exit(void *frontend)
 
 static gint timer_trigger(gpointer data)
 {
-    long now = GPOINTER_TO_INT(data);
+    long now = GPOINTER_TO_SIZE(data);
     long next;
     long ticks;
 
     if (run_timers(now, &next)) {
 	ticks = next - GETTICKCOUNT();
 	timer_id = gtk_timeout_add(ticks > 0 ? ticks : 1, timer_trigger,
-				   GINT_TO_POINTER(next));
+				   GSIZE_TO_POINTER(next));
     }
 
     /*
@@ -1288,7 +1309,7 @@ void timer_change_notify(long next)
 	ticks = 1;		       /* just in case */
 
     timer_id = gtk_timeout_add(ticks, timer_trigger,
-			       GINT_TO_POINTER(next));
+			       GSIZE_TO_POINTER(next));
 }
 
 void fd_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)
@@ -3167,6 +3188,7 @@ static void update_savedsess_menu(GtkMenuItem *menuitem, gpointer data)
 			  (GtkCallback)gtk_widget_destroy, NULL);
 
     get_sesslist(&sesslist, TRUE);
+    /* skip sesslist.sessions[0] == Default Settings */
     for (i = 1; i < sesslist.nsessions; i++) {
 	GtkWidget *menuitem =
 	    gtk_menu_item_new_with_label(sesslist.sessions[i]);
@@ -3180,6 +3202,13 @@ static void update_savedsess_menu(GtkMenuItem *menuitem, gpointer data)
 	gtk_signal_connect(GTK_OBJECT(menuitem), "destroy",
 			   GTK_SIGNAL_FUNC(saved_session_freedata),
 			   inst);
+    }
+    if (sesslist.nsessions <= 1) {
+	GtkWidget *menuitem =
+	    gtk_menu_item_new_with_label("(No sessions)");
+	gtk_widget_set_sensitive(menuitem, FALSE);
+	gtk_container_add(GTK_CONTAINER(inst->sessionsmenu), menuitem);
+	gtk_widget_show(menuitem);
     }
     get_sesslist(&sesslist, FALSE); /* free up */
 }
@@ -3320,7 +3349,7 @@ static void start_backend(struct gui_data *inst)
 	ldisc_create(&inst->cfg, inst->term, inst->back, inst->backhandle,
 		     inst);
 
-    gtk_widget_hide(inst->restartitem);
+    gtk_widget_set_sensitive(inst->restartitem, FALSE);
 }
 
 int pt_main(int argc, char **argv)
@@ -3508,10 +3537,10 @@ int pt_main(int argc, char **argv)
 			       GTK_SIGNAL_FUNC(func), inst); \
 } while (0)
 	if (new_session)
-	    MKMENUITEM("New Session", new_session_menuitem);
+	    MKMENUITEM("New Session...", new_session_menuitem);
         MKMENUITEM("Restart Session", restart_session_menuitem);
 	inst->restartitem = menuitem;
-	gtk_widget_hide(inst->restartitem);
+	gtk_widget_set_sensitive(inst->restartitem, FALSE);
         MKMENUITEM("Duplicate Session", dup_session_menuitem);
 	if (saved_sessions) {
 	    inst->sessionsmenu = gtk_menu_new();
@@ -3522,7 +3551,7 @@ int pt_main(int argc, char **argv)
 				      inst->sessionsmenu);
 	}
 	MKMENUITEM(NULL, NULL);
-        MKMENUITEM("Change Settings", change_settings_menuitem);
+        MKMENUITEM("Change Settings...", change_settings_menuitem);
 	MKMENUITEM(NULL, NULL);
 	if (use_event_log)
 	    MKMENUITEM("Event Log", event_log_menuitem);

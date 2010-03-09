@@ -36,6 +36,9 @@ struct FontSpec {
     (fq) == FQ_NONANTIALIASED ? NONANTIALIASED_QUALITY : \
     CLEARTYPE_QUALITY)
 
+#define PLATFORM_IS_UTF16 /* enable UTF-16 processing when exchanging
+			   * wchar_t strings with environment */
+
 /*
  * Where we can, we use GetWindowLongPtr and friends because they're
  * more useful on 64-bit platforms, but they're a relatively recent
@@ -69,6 +72,19 @@ struct FontSpec {
 #define BOXFLAGS DLGWINDOWEXTRA
 #define BOXRESULT (DLGWINDOWEXTRA + sizeof(LONG_PTR))
 #define DF_END 0x0001
+
+/*
+ * Dynamically linked functions.
+ * This is somewhat circuitous to allow function-renaming macros to be
+ * expanded, principally the ANSI/Unicode DoSomethingA/DoSomethingW.
+ */
+#define DECL_WINDOWS_FUNCTION(linkage, rettype, name, params) \
+    typedef rettype (WINAPI *t_##name) params; \
+    linkage t_##name p_##name
+#define STR1(x) #x
+#define STR(x) STR1(x)
+#define GET_WINDOWS_FUNCTION(module, name) \
+    p_##name = module ? (t_##name) GetProcAddress(module, STR(name)) : NULL
 
 /*
  * Global variables. Most modules declare these `extern', but
@@ -202,16 +218,16 @@ GLOBAL void *logctx;
  * that module must be exported from it as function pointers. So
  * here they are.
  */
-extern int (WINAPI *p_WSAAsyncSelect)
-    (SOCKET s, HWND hWnd, u_int wMsg, long lEvent);
-extern int (WINAPI *p_WSAEventSelect)
-    (SOCKET s, WSAEVENT hEventObject, long lNetworkEvents);
-extern int (WINAPI *p_select)
-    (int nfds, fd_set FAR * readfds, fd_set FAR * writefds,
-     fd_set FAR *exceptfds, const struct timeval FAR * timeout);
-extern int (WINAPI *p_WSAGetLastError)(void);
-extern int (WINAPI *p_WSAEnumNetworkEvents)
-    (SOCKET s, WSAEVENT hEventObject, LPWSANETWORKEVENTS lpNetworkEvents);
+DECL_WINDOWS_FUNCTION(GLOBAL, int, WSAAsyncSelect,
+		      (SOCKET, HWND, u_int, long));
+DECL_WINDOWS_FUNCTION(GLOBAL, int, WSAEventSelect,
+		      (SOCKET, WSAEVENT, long));
+DECL_WINDOWS_FUNCTION(GLOBAL, int, select,
+		      (int, fd_set FAR *, fd_set FAR *,
+		       fd_set FAR *, const struct timeval FAR *));
+DECL_WINDOWS_FUNCTION(GLOBAL, int, WSAGetLastError, (void));
+DECL_WINDOWS_FUNCTION(GLOBAL, int, WSAEnumNetworkEvents,
+		      (SOCKET, WSAEVENT, LPWSANETWORKEVENTS));
 
 extern int socket_writable(SOCKET skt);
 

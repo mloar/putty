@@ -322,14 +322,14 @@ static void codepage_handler(union control *ctrl, void *dlg,
     Config *cfg = (Config *)data;
     if (event == EVENT_REFRESH) {
 	int i;
-	const char *cp;
+	const char *cp, *thiscp;
 	dlg_update_start(ctrl, dlg);
-	strcpy(cfg->line_codepage,
-	       cp_name(decode_codepage(cfg->line_codepage)));
+	thiscp = cp_name(decode_codepage(cfg->line_codepage));
 	dlg_listbox_clear(ctrl, dlg);
 	for (i = 0; (cp = cp_enumerate(i)) != NULL; i++)
 	    dlg_listbox_add(ctrl, dlg, cp);
-	dlg_editbox_set(ctrl, dlg, cfg->line_codepage);
+	dlg_editbox_set(ctrl, dlg, thiscp);
+	strcpy(cfg->line_codepage, thiscp);
 	dlg_update_done(ctrl, dlg);
     } else if (event == EVENT_VALCHANGE) {
 	dlg_editbox_get(ctrl, dlg, cfg->line_codepage,
@@ -1021,19 +1021,25 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 		*p = '\0';
 	    p = cfg->portfwd;
 	    while (*p) {
+		if (strcmp(p,str) == 0) {
+		    dlg_error_msg(dlg, "Specified forwarding already exists");
+		    break;
+		}
 		while (*p)
 		    p++;
 		p++;
 	    }
-	    if ((p - cfg->portfwd) + strlen(str) + 2 <=
-		sizeof(cfg->portfwd)) {
-		strcpy(p, str);
-		p[strlen(str) + 1] = '\0';
-		dlg_listbox_add(pfd->listbox, dlg, str);
-		dlg_editbox_set(pfd->sourcebox, dlg, "");
-		dlg_editbox_set(pfd->destbox, dlg, "");
-	    } else {
-		dlg_error_msg(dlg, "Too many forwardings");
+	    if (!*p) {
+		if ((p - cfg->portfwd) + strlen(str) + 2 <=
+		    sizeof(cfg->portfwd)) {
+		    strcpy(p, str);
+		    p[strlen(str) + 1] = '\0';
+		    dlg_listbox_add(pfd->listbox, dlg, str);
+		    dlg_editbox_set(pfd->sourcebox, dlg, "");
+		    dlg_editbox_set(pfd->destbox, dlg, "");
+		} else {
+		    dlg_error_msg(dlg, "Too many forwardings");
+		}
 	    }
 	} else if (ctrl == pfd->rembutton) {
 	    int i = dlg_listbox_index(pfd->listbox, dlg);
@@ -1175,7 +1181,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_radiobuttons(s, "Connection type:", NO_SHORTCUT, 3,
 			      HELPCTX(session_hostname),
 			      config_protocolbuttons_handler, P(hp),
-			      "Raw", 'r', I(PROT_RAW),
+			      "Raw", 'w', I(PROT_RAW),
 			      "Telnet", 't', I(PROT_TELNET),
 			      "Rlogin", 'i', I(PROT_RLOGIN),
 			      NULL);
@@ -1183,7 +1189,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_radiobuttons(s, "Connection type:", NO_SHORTCUT, 4,
 			      HELPCTX(session_hostname),
 			      config_protocolbuttons_handler, P(hp),
-			      "Raw", 'r', I(PROT_RAW),
+			      "Raw", 'w', I(PROT_RAW),
 			      "Telnet", 't', I(PROT_TELNET),
 			      "Rlogin", 'i', I(PROT_RLOGIN),
 			      "SSH", 's', I(PROT_SSH),
@@ -1241,7 +1247,7 @@ void setup_config_box(struct controlbox *b, int midsession,
     ctrl_columns(s, 1, 100);
 
     s = ctrl_getset(b, "Session", "otheropts", NULL);
-    c = ctrl_radiobuttons(s, "Close window on exit:", 'w', 4,
+    c = ctrl_radiobuttons(s, "Close window on exit:", 'x', 4,
 			  HELPCTX(session_coe),
 			  dlg_stdradiobutton_handler,
 			  I(offsetof(Config, close_on_exit)),

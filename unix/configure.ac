@@ -11,8 +11,11 @@ AC_CONFIG_HEADERS([uxconfig.h:uxconfig.in])
 AC_PROG_INSTALL
 AC_PROG_CC
 if test "X$GCC" = Xyes; then
-    CFLAGS="$CFLAGS -Wall -Werror"
+    PUTTYCFLAGS="-Wall -Werror"
+else
+    PUTTYCFLAGS=""
 fi
+AC_SUBST(PUTTYCFLAGS)
 
 AC_ARG_WITH(gssapi,
 [  --without-gssapi        disable GSS-API support])
@@ -45,8 +48,10 @@ AC_SUBST([all_targets])
 
 AC_SEARCH_LIBS([socket], [xnet])
 if test "$with_gssapi" != "no"; then
-  AC_SEARCH_LIBS([gss_init_sec_context], [gss gssapi gssapi_krb5])
+  AC_SEARCH_LIBS([gss_init_sec_context], [gssapi gssapi_krb5 gss])
 fi
+
+AC_CHECK_LIB(X11, XOpenDisplay)
 
 AC_CHECK_FUNCS([getaddrinfo ptsname setresuid strsignal updwtmpx])
 

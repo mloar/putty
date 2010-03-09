@@ -16,6 +16,8 @@
 #include "sftp.h"
 #include "int64.h"
 
+const char *const appname = "PSFTP";
+
 /*
  * Since SFTP is a request-response oriented protocol, it requires
  * no buffer management: when we send data, we stop and wait for an
@@ -2516,7 +2518,8 @@ int from_backend(void *frontend, int is_stderr, const char *data, int datalen)
      */
     if (is_stderr) {
 	if (len > 0)
-	    fwrite(data, 1, len, stderr);
+	    if (fwrite(data, 1, len, stderr) < len)
+		/* oh well */;
 	return 0;
     }
 

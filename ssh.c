@@ -2880,6 +2880,8 @@ static int ssh_do_close(Ssh ssh, int notify_exit)
 	    del234(ssh->portfwds, pf); /* moving next one to index 0 */
 	    free_portfwd(pf);
 	}
+	freetree234(ssh->portfwds);
+	ssh->portfwds = NULL;
     }
 
     return ret;
@@ -4482,12 +4484,19 @@ static void ssh_setup_portfwd(Ssh ssh, const Config *cfg)
 
 	    epfrec = add234(ssh->portfwds, pfrec);
 	    if (epfrec != pfrec) {
+		if (epfrec->status == DESTROY) {
+		    /*
+		     * We already have a port forwarding up and running
+		     * with precisely these parameters. Hence, no need
+		     * to do anything; simply re-tag the existing one
+		     * as KEEP.
+		     */
+		    epfrec->status = KEEP;
+		}
 		/*
-		 * We already have a port forwarding with precisely
-		 * these parameters. Hence, no need to do anything;
-		 * simply tag the existing one as KEEP.
+		 * Anything else indicates that there was a duplicate
+		 * in our input, which we'll silently ignore.
 		 */
-		epfrec->status = KEEP;
 		free_portfwd(pfrec);
 	    } else {
 		pfrec->status = CREATE;
@@ -7012,11 +7021,13 @@ static void ssh2_msg_channel_eof(Ssh ssh, struct Packet *pktin)
 	 * wrap up and close the channel ourselves.
 	 */
 	x11_close(c->u.x11.s);
+	c->u.x11.s = NULL;
 	sshfwd_close(c);
     } else if (c->type == CHAN_AGENT) {
 	sshfwd_close(c);
     } else if (c->type == CHAN_SOCKDATA) {
 	pfd_close(c->u.pfd.s);
+	c->u.pfd.s = NULL;
 	sshfwd_close(c);
     }
 }
@@ -8498,23 +8509,6 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		    ssh_pkt_getstring(pktin, &lang, &lang_len);
 		    s->cur_prompt = new_prompts(ssh->frontend);
 		    s->cur_prompt->to_server = TRUE;
-		    if (name_len) {
-			/* FIXME: better prefix to distinguish from
-			 * local prompts? */
-			s->cur_prompt->name =
-			    dupprintf("SSH server: %.*s", name_len, name);
-			s->cur_prompt->name_reqd = TRUE;
-		    } else {
-			s->cur_prompt->name =
-			    dupstr("SSH server authentication");
-			s->cur_prompt->name_reqd = FALSE;
-		    }
-		    /* FIXME: ugly to print "Using..." in prompt _every_
-		     * time round. Can this be done more subtly? */
-		    s->cur_prompt->instruction =
-			dupprintf("Using keyboard-interactive authentication.%s%.*s",
-				  inst_len ? "\n" : "", inst_len, inst);
-		    s->cur_prompt->instr_reqd = TRUE;
 
 		    /*
 		     * Get any prompt(s) from the packet.
@@ -8536,6 +8530,33 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 			add_prompt(s->cur_prompt,
 				   dupprintf("%.*s", prompt_len, prompt),
 				   echo, SSH_MAX_PASSWORD_LEN);
+		    }
+
+		    if (name_len) {
+			/* FIXME: better prefix to distinguish from
+			 * local prompts? */
+			s->cur_prompt->name =
+			    dupprintf("SSH server: %.*s", name_len, name);
+			s->cur_prompt->name_reqd = TRUE;
+		    } else {
+			s->cur_prompt->name =
+			    dupstr("SSH server authentication");
+			s->cur_prompt->name_reqd = FALSE;
+		    }
+		    /* We add a prefix to try to make it clear that a prompt
+		     * has come from the server.
+		     * FIXME: ugly to print "Using..." in prompt _every_
+		     * time round. Can this be done more subtly? */
+		    /* Special case: for reasons best known to themselves,
+		     * some servers send k-i requests with no prompts and
+		     * nothing to display. Keep quiet in this case. */
+		    if (s->num_prompts || name_len || inst_len) {
+			s->cur_prompt->instruction =
+			    dupprintf("Using keyboard-interactive authentication.%s%.*s",
+				      inst_len ? "\n" : "", inst_len, inst);
+			s->cur_prompt->instr_reqd = TRUE;
+		    } else {
+			s->cur_prompt->instr_reqd = FALSE;
 		    }
 
 		    /*
@@ -8955,7 +8976,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
     ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN] =
 	ssh2_msg_channel_open;
 
-    if (ssh->cfg.ssh_simple) {
+    if (ssh->mainchan && ssh->cfg.ssh_simple) {
 	/*
 	 * This message indicates to the server that we promise
 	 * not to try to run any other channel in parallel with
